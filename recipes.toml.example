@@ -1,0 +1,37 @@
+# horae recipe example. Copy to ~/.config/horae/recipes.toml and edit.
+#
+# Fields: see docs/design.md. cadence / timeout use s/m/h/d/w (e.g. 3h, 1d, 7d).
+# `command` (argv array, no shell) and `shell` (for && / pipes) are mutually exclusive.
+# `enabled` defaults true; `env` adds / overrides environment variables.
+# Bare commands resolve against the injected PATH (includes /opt/homebrew/bin); for a
+# binary outside standard dirs, use an absolute path or set the step's env.PATH.
+
+[defaults]
+timeout = "15m"
+notify  = "on_change"  # always | never | on_change | on_failure
+
+# Homebrew: pull latest formulae, upgrade formulae & casks, then clean up.
+[[step]]
+id      = "brew"
+label   = "Homebrew"
+cadence = "3h"
+timeout = "30m"
+shell   = "brew update && brew upgrade && brew cleanup"
+
+# Global npm packages. If npm / node aren't on the launchd PATH (/opt/homebrew/bin +
+# standard dirs) — e.g. a custom prefix like ~/.npm-global — inject it via env.PATH:
+#   env = { PATH = "/Users/<you>/.npm-global/bin:/opt/homebrew/bin:/usr/bin:/bin" }
+[[step]]
+id      = "npm-globals"
+label   = "npm globals"
+cadence = "3h"
+shell   = "npx npm-check-updates -g -u && npm update -g"
+
+# Disabled template: flip `enabled` to true to use. Use an absolute path if the
+# binary isn't on the injected PATH.
+[[step]]
+id      = "pipx"
+label   = "pipx apps"
+cadence = "1d"
+command = ["pipx", "upgrade-all"]
+enabled = false

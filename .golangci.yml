@@ -1,0 +1,47 @@
+# golangci-lint v2 配置 —— Go 版的「严格检查层」，对标 allinone 的 ruff + eslint。
+# 把 quality.md 的硬约束机器化：函数 ≤80 行 / 嵌套 ≤3 层 / 圈复杂度 ≤10 / 错误必检 / 安全扫描。
+version: "2"
+
+linters:
+  default: standard # errcheck + govet + ineffassign + staticcheck + unused
+  enable:
+    - gosec # 安全扫描（对标 ruff 的 S / bandit）
+    - gocyclo # 圈复杂度（对标 ruff mccabe.max-complexity = 10）
+    - funlen # 函数长度（对标 quality.md：函数 ≤ 80 行）
+    - nestif # 嵌套深度（对标 quality.md：嵌套 ≤ 3 层 / eslint max-depth 3）
+    - errorlint # error 包装/比较正确性（对标 ruff TRY）
+    - misspell # 拼写
+    - unconvert # 多余类型转换
+    - wastedassign # 无效赋值
+    - nilerr # 返回 nil err 但实际有错
+  settings:
+    funlen:
+      lines: 80
+      statements: 50
+    gocyclo:
+      # Go 的 gocyclo 把每个 error 分支都计入，比 Python ruff 的 mccabe=10 系统性虚高；
+      # 15 是 Go 常用档。结构约束的真意由 funlen(≤80 行) + nestif(≤3 层) 承担。
+      min-complexity: 15
+    nestif:
+      min-complexity: 4 # 大致对应「嵌套 ≤ 3 层」
+    gosec:
+      excludes:
+        # horae 的本职就是执行 recipe 里配置的更新命令（command/shell 都来自用户自己的
+        # 配置，非外部不可信输入）——G204/G702 在此是固有设计而非注入风险。
+        - G204
+        - G702
+        # 读写的是用户自己的 recipe / state / 日志文件路径，非不可信输入。
+        - G304
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - funlen
+          - gosec
+          - gocyclo
+          - errcheck
+
+formatters:
+  enable:
+    - gofumpt # 比 gofmt 更严
+    - goimports

@@ -1,0 +1,10 @@
+/horae
+/dist/
+*.test
+*.out
+.DS_Store
+/.codegraph/
+
+# 设计过程产物(brainstorm/spec/mockup)，仅本地保留
+docs/superpowers/
+/upkeep
