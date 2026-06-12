@@ -7,4 +7,6 @@
 
 # 设计过程产物(brainstorm/spec/mockup)，仅本地保留
 docs/superpowers/
-/upkeep
+
+# 菜单栏 app 构建产物(.app bundle)，由 make app 生成，不入库
+/app/*.app/
