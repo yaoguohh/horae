@@ -2,6 +2,12 @@
   <img src="assets/logo.svg" width="104" alt="horae logo">
 </p>
 
+<p align="center">
+  <a href="https://github.com/yaoguohh/horae/releases/latest"><img src="https://img.shields.io/github/v/release/yaoguohh/horae?sort=semver" alt="release"></a>
+  <img src="https://img.shields.io/badge/platform-macOS%2014%2B-blue" alt="platform">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
+</p>
+
 # horae
 
 > 一份 TOML recipe + 一个 launchd 触发器，统一 macOS 上所有"敲个命令做更新"的任务。
@@ -24,6 +30,7 @@
 - **安全的子进程执行** —— 每步超时、整进程组 kill（交互式更新器不会卡死）、有界输出捕获。
 - **统一可观测性** —— `status` 看每源状态，按天的结构化日志，失败带 stderr 尾部。
 - **原生通知** —— 经 `osascript` 发 macOS 通知，策略 `always` / `on_change` / `on_failure` / `never`。
+- **菜单栏 app（可选）** —— SwiftUI 前端：实时进度、每源状态、内置日志查看、源管理，经 [Sparkle](https://sparkle-project.org) 自更新。
 - **单静态二进制** —— Go，标准库 + 一个 TOML 库，近乎零运行时依赖。装一次跑数年。
 
 ## 环境要求
@@ -44,6 +51,21 @@ make install   # 编译二进制 → ~/.local/bin，生成并加载 LaunchAgent
 
 - 停止调度：`launchctl bootout gui/$(id -u)/com.user.horae`
 - 彻底卸载：`make uninstall`
+
+## 菜单栏 app
+
+`horae` 附带一个可选的 SwiftUI 菜单栏 app —— 基于同一套引擎与文件契约的轻量前端（以读为主）。它在更新时显示实时进度、每源状态弹窗、内置日志查看器、源管理（从预设增删，或直接编辑 recipe），并接管原生通知。引擎与 LaunchAgent 始终是主导，app 不会变成硬依赖。
+
+从 [最新 release](https://github.com/yaoguohh/horae/releases/latest) 下载 `Horae.dmg`，打开后把 **Horae** 拖进"应用程序"。首次启动右键 → 打开 一次以放行 Gatekeeper（app 为 ad-hoc 签名、未公证）。或从源码构建：
+
+```bash
+make app           # 构建 Horae.app（release + 内嵌 Sparkle，ad-hoc 签名）
+make install-app   # 构建 + 拷贝到 ~/Applications
+```
+
+app 读写同一份 `~/.config/horae/recipes.toml`，所以也要装好引擎（`make install`）—— app 是前端，不是替代品。
+
+**自动更新。** app 经 [Sparkle](https://sparkle-project.org) 自更新：后台检查 appcast，也可在 设置 → 软件更新 手动检查。更新用 Sparkle 的 EdDSA 签名校验，无需 Apple 公证。
 
 ## 快速开始
 

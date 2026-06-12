@@ -2,6 +2,12 @@
   <img src="assets/logo.svg" width="104" alt="horae logo">
 </p>
 
+<p align="center">
+  <a href="https://github.com/yaoguohh/horae/releases/latest"><img src="https://img.shields.io/github/v/release/yaoguohh/horae?sort=semver" alt="release"></a>
+  <img src="https://img.shields.io/badge/platform-macOS%2014%2B-blue" alt="platform">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
+</p>
+
 # horae
 
 > One TOML recipe + one launchd trigger to unify every "run-a-command-to-update" task on macOS.
@@ -24,6 +30,7 @@
 - **Safe subprocess execution** — per-step timeout, process-group kill (no hung interactive updaters), bounded output capture.
 - **Unified observability** — per-source state via `status`, plus daily structured logs with stderr tails on failure.
 - **Native notifications** — macOS notifications via `osascript`, with `always` / `on_change` / `on_failure` / `never` policies.
+- **Menu bar app (optional)** — SwiftUI frontend: live progress, per-source status, in-app log viewer, source management, and self-update via [Sparkle](https://sparkle-project.org).
 - **Single static binary** — Go, stdlib + one TOML library, ~zero runtime deps. Install once, runs for years.
 
 ## Requirements
@@ -44,6 +51,21 @@ make install   # build binary → ~/.local/bin, generate & load the LaunchAgent
 
 - Stop scheduling: `launchctl bootout gui/$(id -u)/com.user.horae`
 - Remove entirely: `make uninstall`
+
+## Menu bar app
+
+`horae` ships an optional SwiftUI menu bar app — a thin, read-mostly frontend over the same engine and file contract. It shows live progress while updates run, a per-source status popover, an in-app log viewer, source management (add/remove from presets or edit the recipe directly), and owns the native notifications. The engine and LaunchAgent stay in charge; the app never becomes a hard dependency.
+
+Download `Horae.dmg` from the [latest release](https://github.com/yaoguohh/horae/releases/latest), open it, and drag **Horae** to Applications. On first launch, right-click → Open once to clear Gatekeeper (the app is ad-hoc signed, not notarized). Or build from source:
+
+```bash
+make app           # build Horae.app (release + embedded Sparkle, ad-hoc signed)
+make install-app   # build + copy to ~/Applications
+```
+
+The app reads and writes the same `~/.config/horae/recipes.toml`, so install the engine (`make install`) too — the app is a frontend, not a replacement.
+
+**Auto-update.** The app updates itself via [Sparkle](https://sparkle-project.org): it checks the appcast in the background and offers a manual check in Settings → Software update. Updates are verified with Sparkle's EdDSA signatures, so no Apple notarization is required.
 
 ## Quick start
 
