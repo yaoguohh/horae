@@ -10,13 +10,25 @@
 timeout = "15m"
 notify  = "on_change"  # always | never | on_change | on_failure
 
-# Homebrew: pull latest formulae, upgrade formulae & casks, then clean up.
+# Homebrew formulae (CLI tools): refresh metadata, upgrade formulae, clean up.
+# HOMEBREW_FORCE_BREWED_CURL=1 uses brew's own curl (OpenSSL/nghttp2) to dodge the
+# system curl HTTP/2 "stream not closed cleanly: PROTOCOL_ERROR" on flaky networks.
 [[step]]
 id      = "brew"
 label   = "Homebrew"
 cadence = "3h"
-timeout = "30m"
-shell   = "brew update && brew upgrade && brew cleanup"
+timeout = "15m"
+shell   = "export HOMEBREW_FORCE_BREWED_CURL=1 HOMEBREW_NO_AUTO_UPDATE=1; brew update && brew upgrade --formula && brew cleanup -s"
+
+# Homebrew casks (GUI apps): large downloads over vendor CDNs are slow and flaky, so
+# run them as a separate low-frequency task that tolerates failure (|| true) and never
+# blocks the formula step. CURL_RETRIES=1 makes a stuck download fail fast.
+[[step]]
+id      = "brew-cask"
+label   = "Homebrew Cask"
+cadence = "1d"
+timeout = "20m"
+shell   = "export HOMEBREW_FORCE_BREWED_CURL=1 HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_CURL_RETRIES=1; brew upgrade --cask || true"
 
 # Global npm packages. If npm / node aren't on the launchd PATH (/opt/homebrew/bin +
 # standard dirs) — e.g. a custom prefix like ~/.npm-global — inject it via env.PATH:

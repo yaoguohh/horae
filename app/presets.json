@@ -10,14 +10,24 @@
     "note": "这些 CLI 发版极快(常日更),单列高频 step 以便紧跟。与 npm-globals-ncu 的整体扫描重叠: 二选一即可——想全量统一用 npm-globals-ncu(1d),想只盯 AI CLI 抢新用本 step(6h)。逐包 @latest 比 ncu 更稳(ncu -g 偶有只打印不执行)。"
   },
   {
-    "id": "homebrew-upgrade-all",
-    "label": "Homebrew (formula + cask 全量更新)",
+    "id": "homebrew-formula",
+    "label": "Homebrew (formula / CLI 工具)",
     "manager": "homebrew",
     "installed": true,
-    "detail": "brew 6.0.1 @ /opt/homebrew/bin/brew (Apple Silicon prefix); formula=137, cask=23, outdated=9 (opencode, uv, arc, claude, cmux, discord, drawio, iterm2, keka)。注: gemini-cli/go/uv/python/rust/cargo 均由 b",
-    "shell": "eval \"$(/opt/homebrew/bin/brew shellenv)\" && export HOMEBREW_NO_AUTO_UPDATE=1 && brew update && brew upgrade && brew upgrade --cask && brew cleanup -s",
+    "detail": "brew 6.0.1 @ /opt/homebrew/bin/brew (Apple Silicon prefix); formula=137。CLI 工具(nss/uv/opencode 等)由此升级; gemini-cli/go/uv/python/rust 等运行时也归 brew 域。",
+    "shell": "export HOMEBREW_FORCE_BREWED_CURL=1 HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ENV_HINTS=1; /opt/homebrew/bin/brew update && /opt/homebrew/bin/brew upgrade --formula && /opt/homebrew/bin/brew cleanup -s",
+    "cadence": "3h",
+    "note": "拆分: formula(CLI, 小而快)独立于 cask(GUI, 大而慢)。HOMEBREW_FORCE_BREWED_CURL=1 用 brewed curl(OpenSSL/nghttp2)绕开系统 curl 的 HTTP/2 PROTOCOL_ERROR——实测 formula step 从 30min 超时降到约 30s。绝对路径因 launchd PATH 近空; NO_AUTO_UPDATE 配合显式 brew update, 避免每条子命令重复 autoupdate。"
+  },
+  {
+    "id": "homebrew-cask",
+    "label": "Homebrew Cask (GUI app)",
+    "manager": "homebrew",
+    "installed": true,
+    "detail": "cask=23(arc/discord/iterm2/drawio/claude 等)。多数标 auto_updates 但实测常落后(自更新平时没跑), 由 brew 兜底升级。",
+    "shell": "export HOMEBREW_FORCE_BREWED_CURL=1 HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ENV_HINTS=1 HOMEBREW_CURL_RETRIES=1; /opt/homebrew/bin/brew upgrade --cask || true",
     "cadence": "1d",
-    "note": "launchd PATH 近空: 用绝对路径 /opt/homebrew/bin/brew + shellenv 注入 HOMEBREW_PREFIX/PATH/Cellar。formula 与 cask 分两条 upgrade;默认不带 --greedy(以免误升被手动锁定的自更新型 app)。cleanup -s 清旧版本+缓存回收磁盘。设 HOMEBREW_NO_AUTO_UPDATE=1 配合显式 brew update, 避免每条子命令重复 autoupdate。某些 cask 安装到 /Applications 需 sudo 会卡密码提示(l"
+    "note": "GUI app 大文件走各厂商 CDN, 慢且间歇失败。独立低频(1d)+ 失败容错(|| true)+ 单独超时, 绝不拖累 formula。CURL_RETRIES=1 让卡死下载快速失败。不带 --greedy(默认即可升级落后的 auto_updates app)。某些 cask 装到 /Applications 若需 sudo 会卡密码提示——本机实测无需。"
   },
   {
     "id": "npm-globals-ncu",
