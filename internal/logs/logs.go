@@ -35,25 +35,28 @@ func Prune(dir string, keepDays int, now time.Time) error {
 }
 
 // stale 返回 names 中早于 now-keepDays 天的 run-YYYYMMDD.log 文件名(纯函数，可测)。
+// 文件名按本地时区生成(paths.Log)，故解析与 cutoff 都对齐到 now 所在时区的当天 00:00，
+// 否则本地/UTC 混比会在非 UTC 时区造成保留边界 off-by-one。
 func stale(names []string, now time.Time, keepDays int) []string {
-	cutoff := now.AddDate(0, 0, -keepDays)
+	y, m, d := now.Date()
+	cutoff := time.Date(y, m, d, 0, 0, 0, 0, now.Location()).AddDate(0, 0, -keepDays)
 	var out []string
 	for _, n := range names {
-		d, ok := logDate(n)
-		if ok && d.Before(cutoff) {
+		date, ok := logDate(n, now.Location())
+		if ok && date.Before(cutoff) {
 			out = append(out, n)
 		}
 	}
 	return out
 }
 
-// logDate 从 run-YYYYMMDD.log 解析日期；非此格式返回 ok=false。
-func logDate(name string) (time.Time, bool) {
+// logDate 从 run-YYYYMMDD.log 解析日期(按 loc 取当天 00:00)；非此格式返回 ok=false。
+func logDate(name string, loc *time.Location) (time.Time, bool) {
 	if !strings.HasPrefix(name, "run-") || !strings.HasSuffix(name, ".log") {
 		return time.Time{}, false
 	}
 	ds := strings.TrimSuffix(strings.TrimPrefix(name, "run-"), ".log")
-	t, err := time.Parse("20060102", ds)
+	t, err := time.ParseInLocation("20060102", ds, loc)
 	if err != nil {
 		return time.Time{}, false
 	}

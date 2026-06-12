@@ -38,3 +38,17 @@ func TestStaleBoundary(t *testing.T) {
 		t.Errorf("边界前一天应删, got %v", got)
 	}
 }
+
+// TestStaleBoundaryNonUTC 守护非 UTC 时区下的边界：文件名按本地日期生成，
+// 而旧实现把日期解析成 UTC 午夜再与本地 cutoff 混比，会在负偏移时区误删 cutoff 当天的日志。
+func TestStaleBoundaryNonUTC(t *testing.T) {
+	loc := time.FixedZone("UTC-7", -7*3600)
+	now := time.Date(2026, 6, 12, 23, 0, 0, 0, loc)
+	// cutoff 日期 = now - 14d = 2026-05-29；按本地日历日，当天保留，前一天删。
+	if got := stale([]string{"run-20260529.log"}, now, 14); len(got) != 0 {
+		t.Errorf("UTC-7 边界当天应保留, got %v", got)
+	}
+	if got := stale([]string{"run-20260528.log"}, now, 14); len(got) != 1 {
+		t.Errorf("UTC-7 边界前一天应删, got %v", got)
+	}
+}

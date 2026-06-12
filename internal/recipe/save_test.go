@@ -44,6 +44,19 @@ func TestSaveRoundTrip(t *testing.T) {
 	}
 }
 
+// TestSaveRejectsInvalid 守护写入闸门与读取(Load)共享同一校验：
+// 非正 cadence 不得被持久化，否则下次 Load 会因 "cadence 必须为正" 报错，
+// 陷入产品自己写坏自己、须手改文件才能恢复的死局。
+func TestSaveRejectsInvalid(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "recipes.toml")
+	for _, bad := range []string{"0s", "-5m"} {
+		rec := Recipe{Steps: []Step{{ID: "x", Cadence: dur(bad), Shell: "echo hi"}}}
+		if err := Save(path, rec); err == nil {
+			t.Errorf("Save 应拒绝 cadence=%s", bad)
+		}
+	}
+}
+
 func TestUpsertAndRemove(t *testing.T) {
 	rec := Recipe{Steps: []Step{{ID: "brew", Cadence: dur("3h")}}}
 	rec = UpsertStep(rec, Step{ID: "uv", Cadence: dur("1d")})

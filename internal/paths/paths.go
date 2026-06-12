@@ -1,13 +1,19 @@
 package paths
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 )
 
 func home() string {
-	h, _ := os.UserHomeDir()
+	h, err := os.UserHomeDir()
+	if err != nil || h == "" {
+		// 主目录确定不了时及早失败，而非静默退化为相对路径(CWD)：
+		// 否则私有 state/lock 会落到工作目录，且 flock 按 CWD 解析致单实例失效。
+		panic(fmt.Sprintf("无法确定用户主目录: %v", err))
+	}
 	return h
 }
 

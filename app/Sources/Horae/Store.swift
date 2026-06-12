@@ -51,8 +51,10 @@ final class Store: ObservableObject {
     }
 
     private func startWatching() {
-        watcher = DirectoryWatcher(url: Engine.stateDir) {
-            Task { @MainActor in self.onDirChange() }
+        // [weak self] 打破 Store→watcher→DispatchSource→闭包→Store 保留环，
+        // 与下方 timer 的弱引用约定一致，确保 Store 释放时 watcher 能正常 cancel/close(fd)。
+        watcher = DirectoryWatcher(url: Engine.stateDir) { [weak self] in
+            Task { @MainActor in self?.onDirChange() }
         }
     }
 

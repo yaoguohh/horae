@@ -247,8 +247,15 @@ enum Engine {
         p.standardOutput = FileHandle.nullDevice
         p.standardError = FileHandle.nullDevice
         guard (try? p.run()) != nil else { return }
-        inPipe.fileHandleForWriting.write(data)
-        inPipe.fileHandleForWriting.closeFile()
+        // 用可抛 Swift error 的现代 API：子进程提前退出时 EPIPE 是可捕获的 error，
+        // 而非弃用 write(_:)/closeFile() 抛出的、try? 接不住的 ObjC NSException(会崩溃整个 app)。
+        let handle = inPipe.fileHandleForWriting
+        do {
+            try handle.write(contentsOf: data)
+            try handle.close()
+        } catch {
+            // 子进程在读完 stdin 前已退出，放弃写入即可。
+        }
         p.waitUntilExit()
     }
 
