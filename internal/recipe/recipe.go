@@ -19,13 +19,13 @@ type Defaults struct {
 
 type Step struct {
 	ID      string            `toml:"id"`
-	Label   string            `toml:"label"`
+	Label   string            `toml:"label,omitempty"`
 	Cadence Duration          `toml:"cadence"`
-	Command []string          `toml:"command"`
-	Shell   string            `toml:"shell"`
-	Timeout Duration          `toml:"timeout"`
-	Env     map[string]string `toml:"env"`
-	Enabled *bool             `toml:"enabled"`
+	Command []string          `toml:"command,omitempty"`
+	Shell   string            `toml:"shell,omitempty"`
+	Timeout Duration          `toml:"timeout,omitempty"`
+	Env     map[string]string `toml:"env,omitempty"`
+	Enabled *bool             `toml:"enabled,omitempty"`
 }
 
 // IsEnabled：省略 enabled 时默认 true。

@@ -48,6 +48,8 @@ app:
 	cp $(APP_DIR)/Info.plist $(APP_BUNDLE)/Contents/Info.plist
 	cp $(APP_DIR)/.build/release/Horae $(APP_BUNDLE)/Contents/MacOS/Horae
 	cp $(APP_DIR)/Icons/*.png $(APP_BUNDLE)/Contents/Resources/icons/
+	cp $(APP_DIR)/AppIcon.icns $(APP_BUNDLE)/Contents/Resources/AppIcon.icns
+	cp $(APP_DIR)/presets.json $(APP_BUNDLE)/Contents/Resources/presets.json
 	codesign --force --sign - $(APP_BUNDLE)
 	@echo "Built $(APP_BUNDLE)"
 

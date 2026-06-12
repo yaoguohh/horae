@@ -1,0 +1,4 @@
+.build/
+Horae.app/
+*.xcodeproj
+.swiftpm/

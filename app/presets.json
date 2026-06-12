@@ -1,0 +1,212 @@
+[
+  {
+    "id": "ai-dev-clis",
+    "label": "AI/dev CLI (claude-code / codex / skills / codegraph)",
+    "manager": "npm (global, AI CLIs)",
+    "installed": true,
+    "detail": "高频迭代的 AI CLI 全装在 ~/.npm-global: @anthropic-ai/claude-code@2.1.175 (bin claude), @openai/codex@0.139.0 (bin codex), skills@1.5.11 (bin skills/add-skill), @colbymchenry/codegraph@0.9.9 (bin codegraph), ",
+    "shell": "export PATH=\"/Users/yaoguohh/.npm-global/bin:/opt/homebrew/bin:$PATH\"; /Users/yaoguohh/.npm-global/bin/npm i -g @anthropic-ai/claude-code@latest @openai/codex@latest skills@latest @colbymchenry/codegraph@latest",
+    "cadence": "6h",
+    "note": "这些 CLI 发版极快(常日更),单列高频 step 以便紧跟。与 npm-globals-ncu 的整体扫描重叠: 二选一即可——想全量统一用 npm-globals-ncu(1d),想只盯 AI CLI 抢新用本 step(6h)。逐包 @latest 比 ncu 更稳(ncu -g 偶有只打印不执行)。"
+  },
+  {
+    "id": "homebrew-upgrade-all",
+    "label": "Homebrew (formula + cask 全量更新)",
+    "manager": "homebrew",
+    "installed": true,
+    "detail": "brew 6.0.1 @ /opt/homebrew/bin/brew (Apple Silicon prefix); formula=137, cask=23, outdated=9 (opencode, uv, arc, claude, cmux, discord, drawio, iterm2, keka)。注: gemini-cli/go/uv/python/rust/cargo 均由 b",
+    "shell": "eval \"$(/opt/homebrew/bin/brew shellenv)\" && export HOMEBREW_NO_AUTO_UPDATE=1 && brew update && brew upgrade && brew upgrade --cask && brew cleanup -s",
+    "cadence": "1d",
+    "note": "launchd PATH 近空: 用绝对路径 /opt/homebrew/bin/brew + shellenv 注入 HOMEBREW_PREFIX/PATH/Cellar。formula 与 cask 分两条 upgrade;默认不带 --greedy(以免误升被手动锁定的自更新型 app)。cleanup -s 清旧版本+缓存回收磁盘。设 HOMEBREW_NO_AUTO_UPDATE=1 配合显式 brew update, 避免每条子命令重复 autoupdate。某些 cask 安装到 /Applications 需 sudo 会卡密码提示(l"
+  },
+  {
+    "id": "npm-globals-ncu",
+    "label": "npm global packages (ncu sweep)",
+    "manager": "npm (global)",
+    "installed": true,
+    "detail": "node v26.3.0 (/opt/homebrew/bin/node, Homebrew). npm v11.17.0 at /Users/yaoguohh/.npm-global/bin/npm. prefix=/Users/yaoguohh/.npm-global. ncu (npm-check-updates) v22.2.3 installed. 12 global pkgs: cla",
+    "shell": "export PATH=\"/Users/yaoguohh/.npm-global/bin:/opt/homebrew/bin:$PATH\"; /Users/yaoguohh/.npm-global/bin/ncu -g -u && /Users/yaoguohh/.npm-global/bin/npm update -g",
+    "cadence": "1d",
+    "note": "自定义 prefix ~/.npm-global,无需 sudo,用户态可写。`ncu -g` 不动 npm 本体(见 npm-self-update);node 由 Homebrew 管理(brew 域)。`ncu -g -u` 在部分版本只打印不执行,若发现未生效改用逐包: /Users/yaoguohh/.npm-global/bin/npm i -g <pkg>@latest。与 ai-dev-clis 重叠,二选一。已在 recipe。"
+  },
+  {
+    "id": "uv-tool-upgrade-all",
+    "label": "uv tools (upgrade all)",
+    "manager": "uv",
+    "installed": true,
+    "detail": "uv 0.11.20 (Homebrew) at /opt/homebrew/bin/uv; 5 tools installed: cooldown-my-mac v0.1.0, huggingface-hub v1.14.0, pyright v1.1.408, specify-cli v0.0.20, ruff v0.15.6",
+    "shell": "/opt/homebrew/bin/uv tool upgrade --all",
+    "cadence": "1d",
+    "note": "把所有 uv 托管 CLI(uv tool list 那批)升到最新兼容版。便宜且安全,可日跑。不要在此用 `uv self update`: 这个 uv 是 Homebrew 构建(/opt/homebrew/bin/uv 软链到 ../Cellar/uv/0.11.20),self-update 会拒绝, uv 二进制升级归 brew 域。绝对路径因 launchd PATH 近空。"
+  },
+  {
+    "id": "go-tools-update",
+    "label": "Go-installed CLI tools (go install @latest)",
+    "manager": "go",
+    "installed": true,
+    "detail": "go 1.26.4 darwin/arm64 @ /opt/homebrew/bin/go (Homebrew)。GOPATH=/Users/yaoguohh/go, GOBIN 空(默认 $GOPATH/bin)。$GOPATH/bin 含 2 个 go 装的工具: gopls, protoc-gen-go。go 运行时本身归 brew(brew upgrade go)。",
+    "shell": "export PATH=\"/opt/homebrew/bin:$PATH\" GOPATH=\"$HOME/go\"; for t in golang.org/x/tools/gopls google.golang.org/protobuf/cmd/protoc-gen-go; do /opt/homebrew/bin/go install \"$t@latest\"; done",
+    "cadence": "7d",
+    "note": "更新 $GOPATH/bin 下的第三方 Go CLI,不是 Go 工具链(那是 brew upgrade go)。模块路径硬编码——因 `go install @latest` 需原始 import path, 无法从二进制名反推;须与 `ls $GOPATH/bin` 保持同步。每个工具都联网+编译,空闲时跑。绝对 go path + 显式 PATH/GOPATH 因 launchd PATH 近空。"
+  },
+  {
+    "id": "npm-self-update",
+    "label": "npm 自身",
+    "manager": "npm (self)",
+    "installed": true,
+    "detail": "npm v11.17.0,安装于 /Users/yaoguohh/.npm-global/lib/node_modules/npm。`ncu -g` / `npm update -g` 通常跳过 npm 本体,需单独自更新。",
+    "shell": "export PATH=\"/Users/yaoguohh/.npm-global/bin:/opt/homebrew/bin:$PATH\"; /Users/yaoguohh/.npm-global/bin/npm install -g npm@latest",
+    "cadence": "7d",
+    "note": "node 来自 Homebrew(不是 nvm/fnm),npm 用自定义 prefix 装在 ~/.npm-global,自更新不需 sudo。若 Homebrew 重装 node 可能覆盖 PATH 中的 npm,届时确认 `which npm` 仍指向 ~/.npm-global/bin/npm。"
+  },
+  {
+    "id": "corepack-pnpm",
+    "label": "pnpm / corepack",
+    "manager": "corepack",
+    "installed": true,
+    "detail": "corepack@0.35.0 已装(/Users/yaoguohh/.npm-global/bin/corepack)。pnpm 双来源已确认: standalone npm-global pnpm@11.6.0(bin pn -> pnpm.mjs)与 corepack shim(bin pnpm -> corepack/dist/pnpm.js)。yarn 也由 corepack 提供 sh",
+    "shell": "export PATH=\"/Users/yaoguohh/.npm-global/bin:/opt/homebrew/bin:$PATH\"; /Users/yaoguohh/.npm-global/bin/corepack up 2>/dev/null || /Users/yaoguohh/.npm-global/bin/npm i -g pnpm@latest",
+    "cadence": "7d",
+    "note": "pnpm 存在 standalone(npm-globals-ncu 已覆盖)与 corepack 托管两套来源, 版本易打架(11.6.0 standalone vs corepack 实测 10.x)。建议二选一来源: 若以 standalone 为准, 本步可省, 交给 npm-globals-ncu;若以 corepack 为准, 保留本步并从 npm-global 移除 standalone pnpm。"
+  },
+  {
+    "id": "pip3-self-upgrade",
+    "label": "pip (self-upgrade)",
+    "manager": "pip",
+    "installed": true,
+    "detail": "pip 26.1.1, Python 3.14.5, from /opt/homebrew/lib/python3.14/site-packages/pip; 经 /opt/homebrew/bin/python3 (Homebrew python3)",
+    "shell": "/opt/homebrew/bin/python3 -m pip install --upgrade pip",
+    "cadence": "7d",
+    "note": "这是 Homebrew Python 的 pip;无 EXTERNALLY-MANAGED 标记,故自升可行,但 brew 升 python 时也会重置 pip。无安全的全局 pip upgrade-all(批量 --upgrade 全部 site-packages 常破依赖钉),故只升 pip 自身。逐项目依赖归 uv/venv,不归全局 cron。用 `python3 -m pip`(绝对 python3)而非 pip3 wrapper, 在 launchd PATH 下更稳。"
+  },
+  {
+    "id": "gem-update-user",
+    "label": "Ruby user gems (gem)",
+    "manager": "RubyGems",
+    "installed": true,
+    "detail": "gem @ /usr/bin/gem (RubyGems 3.0.3.1, system Ruby 2.6.10 universal.arm64e-darwin25)。`gem outdated` 列 42 个过期 gem(如 bundler 1.17.2<4.x, bigdecimal, csv)。",
+    "shell": "/usr/bin/gem update --user-install",
+    "cadence": "7d",
+    "note": "检测到的是 SIP 保护的系统 Ruby。多数 42 个 outdated 是 /System 下的 bundled default gems, 不能/不该替换;裸 `gem update` 需 sudo 且脆弱。限定 --user-install(写 ~/.gem, 免 sudo)让 launchd 无人值守跑。长期更优: 用版本管理 Ruby(rbenv/mise/asdf)或 Homebrew ruby formula。低优先 / 选装。"
+  },
+  {
+    "id": "gemini-cli",
+    "label": "Google Gemini CLI",
+    "manager": "homebrew (gemini-cli) / npm 备选",
+    "installed": false,
+    "detail": "实测: npm @google/gemini-cli 未装(npm -g 无), 但 Homebrew 已装 gemini-cli@0.46.0(/opt/homebrew/bin/gemini -> ../Cellar/gemini-cli/0.46.0/bin/gemini)。即 gemini 在本机由 brew 域负责升级, 不需独立 step。",
+    "shell": "export PATH=\"/Users/yaoguohh/.npm-global/bin:/opt/homebrew/bin:$PATH\"; /Users/yaoguohh/.npm-global/bin/npm i -g @google/gemini-cli@latest",
+    "cadence": "6h",
+    "note": "已被 homebrew-upgrade-all 覆盖(gemini-cli formula): 默认不要启用本 npm step, 否则会出现 brew 与 npm 两份 gemini 在 PATH 上互相遮蔽。仅当你刻意改用 npm 版(并 brew uninstall gemini-cli)时才启用本步;此时 bin gemini 落到 ~/.npm-global/bin。"
+  },
+  {
+    "id": "pipx-upgrade-all",
+    "label": "pipx apps (upgrade all)",
+    "manager": "pipx",
+    "installed": false,
+    "detail": "pipx not found on PATH (command -v pipx empty)。本机用 `uv tool` 覆盖隔离 CLI 需求。",
+    "shell": "$(command -v pipx || echo /opt/homebrew/bin/pipx) upgrade-all",
+    "cadence": "1d",
+    "note": "预设——pipx 未安装(本机用 uv tool 替代)。若日后 brew install pipx, `pipx upgrade-all` 升级所有 pipx 托管 app;注入额外依赖则加 `--include-injected`。安装时再确定绝对路径(很可能 /opt/homebrew/bin/pipx), 因 launchd PATH 近空。"
+  },
+  {
+    "id": "rustup-update",
+    "label": "Rust toolchains (rustup)",
+    "manager": "rustup",
+    "installed": false,
+    "detail": "rustup not found。本机 cargo/rustc 由 Homebrew 管理(cargo 1.96.0 / rustc 1.96.0, 均标 (Homebrew));rustup 托管的 toolchain 缺席。",
+    "shell": "export RUSTUP_HOME=\"$HOME/.rustup\" CARGO_HOME=\"$HOME/.cargo\"; \"$HOME/.cargo/bin/rustup\" update",
+    "cadence": "7d",
+    "note": "预设, 未启用。本机 Rust 来自 Homebrew, 真正的工具链更新是 `brew upgrade rust`(brew 域已覆盖)——除非日后经 rustup.rs 安装 rustup, 否则别启用本步。rustup 与 brew rust 共存会让两个 rustc 在 PATH 互相遮蔽, 须二选一。rustup 写 ~/.rustup 和 ~/.cargo/bin, 不在 launchd PATH 上, 故用 HOME 锚定路径。"
+  },
+  {
+    "id": "cargo-install-update",
+    "label": "Cargo global binaries (cargo install-update -a)",
+    "manager": "cargo (cargo-update)",
+    "installed": false,
+    "detail": "子命令缺失: `cargo install-update --version` -> no such command;`cargo install --list` 当前为空(零用户安装的 cargo crate)。cargo 本体在 /opt/homebrew/bin/cargo (1.96.0 Homebrew)。",
+    "shell": "export CARGO_HOME=\"$HOME/.cargo\"; /opt/homebrew/bin/cargo install-update -a",
+    "cadence": "7d",
+    "note": "预设。需先装 cargo-update crate: `cargo install cargo-update`。更新经 `cargo install` 装的 crate(如 ripgrep/bat/eza), 独立于 rustc 工具链。今天 no-op(install --list 空), 一旦你 `cargo install` 工具就有用。从源码重编, 慢/吃 CPU, 空闲时跑。用 Homebrew cargo 绝对路径因 launchd PATH 近空。"
+  },
+  {
+    "id": "conda-update-all",
+    "label": "conda (update base env)",
+    "manager": "conda",
+    "installed": false,
+    "detail": "conda not found;无 miniconda3/anaconda3/miniforge3/mambaforge/Caskroom 安装目录。",
+    "shell": "source \"$HOME/miniconda3/etc/profile.d/conda.sh\" && conda activate base && conda update --all --yes",
+    "cadence": "7d",
+    "note": "预设——conda 未安装。conda 在 launchd 空 PATH 上无可用 bin, 必须先 `source <prefix>/etc/profile.d/conda.sh`(按真实安装调 prefix: miniconda3/anaconda3/miniforge3)。`conda update --all` 只更新当前激活 env, 需对每个关心的 env 各跑一次。每周足矣;完整 solve 慢且偶破 env, 无人值守前考虑 `conda env export` 快照。与 mamba 二选一。"
+  },
+  {
+    "id": "mamba-update-all",
+    "label": "mamba (update base env)",
+    "manager": "mamba",
+    "installed": false,
+    "detail": "mamba not found;无 mambaforge/miniforge3 安装目录。",
+    "shell": "source \"$HOME/miniforge3/etc/profile.d/conda.sh\" && conda activate base && mamba update --all --yes",
+    "cadence": "7d",
+    "note": "预设——mamba 未安装。mamba 是更快的 conda solver drop-in, 共用 conda 激活: 调 mamba 前先 source miniforge3/mambaforge prefix 的 conda.sh(否则不在 launchd 空 PATH 上)。同 conda 的 env 作用域注意: `mamba update --all` 只动激活 env。同一安装里 conda 与 mamba 二选一, 不要都装都跑。"
+  },
+  {
+    "id": "mas-upgrade",
+    "label": "Mac App Store apps (mas)",
+    "manager": "mas-cli",
+    "installed": false,
+    "detail": "command -v mas -> NOT_FOUND;不在 /opt/homebrew/bin。mas outdated 无输出(无二进制)。",
+    "shell": "/opt/homebrew/bin/mas upgrade",
+    "cadence": "1d",
+    "note": "预设(未安装)。经 `brew install mas` 安装。mas 只能升级用当前登录 Apple ID 从 App Store 装的 app;沙箱化且非交互, 对 launchd 安全。launchd PATH 近空时用绝对 /opt/homebrew/bin/mas。需 App Store 登录, 未登录时 outdated/upgrade 静默 no-op。"
+  },
+  {
+    "id": "gcloud-components-update",
+    "label": "Google Cloud SDK components",
+    "manager": "gcloud (Cloud SDK)",
+    "installed": false,
+    "detail": "command -v gcloud -> NOT_FOUND;无 ~/google-cloud-sdk / ~/.config/gcloud / /usr/local/google-cloud-sdk。",
+    "shell": "[ -f \"$HOME/google-cloud-sdk/path.bash.inc\" ] && . \"$HOME/google-cloud-sdk/path.bash.inc\"; gcloud components update --quiet",
+    "cadence": "7d",
+    "note": "预设(未安装)。`gcloud components update` 只对 standalone tarball/curl 安装有效, 对 Homebrew cask 无效(cask 归 brew, 拒绝自更新)。--quiet 自动确认以适配非交互 launchd。若用 Homebrew 安装则删掉本步交给 brew。launchd PATH 近空, 须 source path.bash.inc 解析 gcloud。"
+  },
+  {
+    "id": "mise-upgrade",
+    "label": "mise-managed tool versions",
+    "manager": "mise",
+    "installed": false,
+    "detail": "command -v mise -> NOT_FOUND;不在 /opt/homebrew/bin 或 ~/.local/bin。无可列插件。",
+    "shell": "/opt/homebrew/bin/mise upgrade --yes && /opt/homebrew/bin/mise plugins update",
+    "cadence": "7d",
+    "note": "预设(未安装)。经 `brew install mise` 安装。`mise upgrade` 把已装工具升到 config 允许的最新;`plugins update` 刷新插件仓库。--yes 适配非交互 launchd。绝对路径因 launchd PATH 近空。新环境优先 mise 而非 asdf(单静态二进制, 更快);与 asdf 二选一。"
+  },
+  {
+    "id": "asdf-plugin-update",
+    "label": "asdf plugins and tool versions",
+    "manager": "asdf",
+    "installed": false,
+    "detail": "command -v asdf -> NOT_FOUND;无 ~/.asdf 目录。无可列插件。",
+    "shell": "[ -f \"$HOME/.asdf/asdf.sh\" ] && . \"$HOME/.asdf/asdf.sh\"; asdf plugin update --all",
+    "cadence": "7d",
+    "note": "预设(未安装)。`asdf plugin update --all` 只刷新插件元数据/可用版本, 不安装更新的工具版本(asdf 无全局 upgrade)。asdf 是 shell-function shim, launchd 下须 source asdf.sh 而非当裸二进制调。实践中与 mise 互斥——二选一。"
+  },
+  {
+    "id": "sdkman-selfupdate",
+    "label": "SDKMAN candidates (sdk)",
+    "manager": "SDKMAN!",
+    "installed": false,
+    "detail": "command -v sdk -> NOT_FOUND;无 ~/.sdkman 目录。",
+    "shell": "export SDKMAN_DIR=\"$HOME/.sdkman\"; [ -s \"$SDKMAN_DIR/bin/sdkman-init.sh\" ] && . \"$SDKMAN_DIR/bin/sdkman-init.sh\"; sdk selfupdate force && sdk update",
+    "cadence": "7d",
+    "note": "预设(未安装)。`sdk` 是 bash 函数非二进制——须设 SDKMAN_DIR 后 source sdkman-init.sh, launchd 下不能直调。`selfupdate force` 更新 SDKMAN 本体, `sdk update` 刷新候选列表。升级实际候选(`sdk upgrade`)交互提示多, 故无人值守步里不含。"
+  },
+  {
+    "id": "tldr-update",
+    "label": "tldr pages cache",
+    "manager": "tldr (client-dependent)",
+    "installed": false,
+    "detail": "command -v tldr -> NOT_FOUND;tldr --version 无输出。",
+    "shell": "/opt/homebrew/bin/tldr --update",
+    "cadence": "7d",
+    "note": "预设(未安装)。刷新离线命令速查缓存, 非软件本体。flag 因 client 而异: Rust 'tealdeer' 和 C 'tldr' 用 '--update', Node client 用 '-u'——装后据实调整。纯缓存刷新, 对 launchd 完全安全。launchd PATH 近空时用绝对路径解析。"
+  }
+]

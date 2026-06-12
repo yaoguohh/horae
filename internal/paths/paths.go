@@ -43,8 +43,13 @@ func Pause() string { return filepath.Join(stateDir(), "pause.json") }
 // Overrides 是 app 写、引擎读的每源覆盖(enabled)。统一 JSON 便于 Swift Codable。
 func Overrides() string { return filepath.Join(stateDir(), "overrides.json") }
 
+// LogDir：日志目录 ~/Library/Logs/horae。
+func LogDir() string {
+	return filepath.Join(home(), "Library", "Logs", "horae")
+}
+
 // Log：macOS 习惯放 ~/Library/Logs/horae/run-YYYYMMDD.log。
 func Log() string {
 	day := time.Now().Format("20060102")
-	return filepath.Join(home(), "Library", "Logs", "horae", "run-"+day+".log")
+	return filepath.Join(LogDir(), "run-"+day+".log")
 }

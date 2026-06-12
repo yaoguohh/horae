@@ -22,6 +22,29 @@ func (d *Duration) UnmarshalText(text []byte) error {
 	return nil
 }
 
+// MarshalText 写回 TOML 时输出短格式(6h/3h/1d/7d/30m)，而非 time.Duration 的纳秒整数。
+func (d Duration) MarshalText() ([]byte, error) {
+	return []byte(humanDuration(time.Duration(d))), nil
+}
+
+// humanDuration 把 duration 还原成最简短的 w/d/h/m/s 单一单位表示。
+func humanDuration(d time.Duration) string {
+	switch {
+	case d <= 0:
+		return "0s"
+	case d%(7*24*time.Hour) == 0:
+		return strconv.FormatInt(int64(d/(7*24*time.Hour)), 10) + "w"
+	case d%(24*time.Hour) == 0:
+		return strconv.FormatInt(int64(d/(24*time.Hour)), 10) + "d"
+	case d%time.Hour == 0:
+		return strconv.FormatInt(int64(d/time.Hour), 10) + "h"
+	case d%time.Minute == 0:
+		return strconv.FormatInt(int64(d/time.Minute), 10) + "m"
+	default:
+		return d.String()
+	}
+}
+
 var dwRe = regexp.MustCompile(`([0-9]*\.?[0-9]+)([dw])`)
 
 // ParseDuration 在 time.ParseDuration（支持 s/m/h）之上扩展 d（天）/w（周）。

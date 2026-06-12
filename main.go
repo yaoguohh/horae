@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"horae/internal/control"
 	"horae/internal/lock"
+	"horae/internal/logs"
 	"horae/internal/orchestrator"
 	"horae/internal/paths"
 	"horae/internal/recipe"
@@ -31,6 +32,8 @@ func main() {
 		os.Exit(cmdRun(os.Args[2:]))
 	case "status":
 		os.Exit(cmdStatus(os.Args[2:]))
+	case "config":
+		os.Exit(cmdConfig(os.Args[2:]))
 	case "-h", "--help", "help":
 		usage()
 		os.Exit(0)
@@ -180,6 +183,10 @@ func finishRun(logger *slog.Logger, results []orchestrator.StepResult, policy st
 	}
 	if err := report.WriteLastRun(paths.LastRun(), report.Build(results, policy, time.Now())); err != nil {
 		logger.Warn("写 last-run.json 失败", "err", err)
+	}
+	// 日志轮转：只留近 14 天，旧的自动删。
+	if err := logs.Prune(paths.LogDir(), 14, time.Now()); err != nil {
+		logger.Warn("日志清理失败", "err", err)
 	}
 }
 
