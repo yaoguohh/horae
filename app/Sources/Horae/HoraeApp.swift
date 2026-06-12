@@ -3,11 +3,13 @@ import SwiftUI
 @main
 struct HoraeApp: App {
     @StateObject private var store = Store()
+    @StateObject private var updater = Updater()
 
     var body: some Scene {
         MenuBarExtra {
             PopoverView()
                 .environmentObject(store)
+                .environmentObject(updater)
                 .tint(.horaeAccent)
                 .preferredColorScheme(.dark) // 固定深色玻璃风
         } label: {

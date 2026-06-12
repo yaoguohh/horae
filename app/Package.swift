@@ -6,7 +6,15 @@ import PackageDescription
 let package = Package(
     name: "Horae",
     platforms: [.macOS(.v14)],
+    dependencies: [
+        // Sparkle: 应用内自动更新。ad-hoc 签名路径靠自带的 EdDSA 更新签名工作，独立于 Apple 公证。
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0")
+    ],
     targets: [
-        .executableTarget(name: "Horae", path: "Sources/Horae")
+        .executableTarget(
+            name: "Horae",
+            dependencies: [.product(name: "Sparkle", package: "Sparkle")],
+            path: "Sources/Horae"
+        )
     ]
 )

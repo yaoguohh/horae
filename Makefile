@@ -5,8 +5,9 @@ UID := $(shell id -u)
 APP_DIR := app
 APP_BUNDLE := $(APP_DIR)/Horae.app
 APP_DEST := $(HOME)/Applications/Horae.app
+DMG := dist/Horae.dmg
 
-.PHONY: build test vet fmt lint check install uninstall app install-app uninstall-app
+.PHONY: build test vet fmt lint check install uninstall app install-app uninstall-app dmg
 
 build:
 	go build -o horae .
@@ -39,19 +40,21 @@ uninstall:
 	rm -f $(BIN) $(PLIST)
 	@echo "Removed horae + LaunchAgent (config and logs under ~/.config and ~/Library/Logs kept)."
 
-# Menu bar app: build SwiftUI executable, assemble .app bundle (Info.plist + icons),
-# ad-hoc sign (personal use, no notarization). Engine must be installed separately (make install).
+# Menu bar app: assemble the .app bundle (release build + icons + embedded Sparkle.framework,
+# ad-hoc signed with a stable designated requirement). See scripts/package-app.sh.
+# Engine must be installed separately (make install).
 app:
-	cd $(APP_DIR) && swift build -c release
-	rm -rf $(APP_BUNDLE)
-	mkdir -p $(APP_BUNDLE)/Contents/MacOS $(APP_BUNDLE)/Contents/Resources/icons
-	cp $(APP_DIR)/Info.plist $(APP_BUNDLE)/Contents/Info.plist
-	cp $(APP_DIR)/.build/release/Horae $(APP_BUNDLE)/Contents/MacOS/Horae
-	cp $(APP_DIR)/Icons/*.png $(APP_BUNDLE)/Contents/Resources/icons/
-	cp $(APP_DIR)/AppIcon.icns $(APP_BUNDLE)/Contents/Resources/AppIcon.icns
-	cp $(APP_DIR)/presets.json $(APP_BUNDLE)/Contents/Resources/presets.json
-	codesign --force --sign - $(APP_BUNDLE)
-	@echo "Built $(APP_BUNDLE)"
+	bash scripts/package-app.sh
+
+# Installable disk image: Horae.app + an /Applications symlink, compressed (UDZO).
+dmg: app
+	mkdir -p dist && rm -f $(DMG)
+	$(eval STAGE := $(shell mktemp -d))
+	cp -R $(APP_BUNDLE) $(STAGE)/
+	ln -s /Applications $(STAGE)/Applications
+	hdiutil create -volname Horae -srcfolder $(STAGE) -fs HFS+ -format UDZO -imagekey zlib-level=9 -ov $(DMG)
+	rm -rf $(STAGE)
+	@echo "Built $(DMG)"
 
 install-app: app
 	rm -rf $(APP_DEST)

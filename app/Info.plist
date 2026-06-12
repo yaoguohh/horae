@@ -24,5 +24,11 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Horae</string>
+	<key>SUFeedURL</key>
+	<string>https://github.com/yaoguohh/horae/releases/latest/download/appcast.xml</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUPublicEDKey</key>
+	<string>A15NTiXJNGg+bdBSilDvtTnItRxHS+JA8568qlZLJS4=</string>
 </dict>
 </plist>

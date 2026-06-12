@@ -15,6 +15,7 @@ enum NotifyPolicy: String, CaseIterable, Identifiable {
 
 struct SettingsView: View {
     let onClose: () -> Void
+    @EnvironmentObject private var updater: Updater
     @AppStorage("notifyPolicy") private var notifyPolicy = NotifyPolicy.on_change.rawValue
     @State private var loginOn = LoginItem.isEnabled
 
@@ -25,9 +26,10 @@ struct SettingsView: View {
             VStack(spacing: 6) {
                 notifyRow
                 loginRow
+                updateRow
             }
             .padding(.horizontal, 12).padding(.top, 12).padding(.bottom, 9)
-            Text("Horae · 单机版").font(.system(size: 9.5)).foregroundStyle(.tertiary)
+            Text("Horae v\(updater.version) · 单机版").font(.system(size: 9.5)).foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity).padding(.bottom, 11)
         }
         .frame(width: 336)
@@ -44,7 +46,7 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             VStack(alignment: .leading, spacing: 1) {
                 Text("设置").font(.system(size: 14, weight: .bold))
-                Text("通知 · 启动").font(.system(size: 10)).foregroundStyle(.secondary)
+                Text("通知 · 启动 · 更新").font(.system(size: 10)).foregroundStyle(.secondary)
             }
             Spacer()
         }
@@ -77,6 +79,18 @@ struct SettingsView: View {
             Toggle("", isOn: $loginOn)
                 .toggleStyle(.switch).labelsHidden().controlSize(.small).tint(.green)
                 .onChange(of: loginOn) { _, on in LoginItem.setEnabled(on) }
+        }
+    }
+
+    private var updateRow: some View {
+        settingRow(symbol: "arrow.down.circle", title: "软件更新", subtitle: "当前 v\(updater.version) · 后台自动检查") {
+            Button(action: { updater.checkForUpdates() }) {
+                Text("检查更新").font(.system(size: 11.5, weight: .semibold))
+                    .padding(.horizontal, 10).frame(height: 24)
+                    .background(Color.horaeAccent.opacity(0.14)).clipShape(RoundedRectangle(cornerRadius: 7))
+                    .foregroundStyle(Color.horaeAccent)
+            }
+            .buttonStyle(.plain).disabled(!updater.canCheck)
         }
     }
 
