@@ -2,6 +2,8 @@ import SwiftUI
 
 struct PopoverView: View {
     @EnvironmentObject var store: Store
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var escFocused: Bool
     @State private var showSettings = false
     @State private var showLog = false
     @State private var showSources = false
@@ -24,6 +26,23 @@ struct PopoverView: View {
             }
         }
         .frame(width: 336)
+        // MenuBarExtra(.window) 不像 NSMenu 那样按 esc 自动关闭; onExitCommand 接住 cancel(esc)。
+        // onExitCommand 仅在视图获焦时触发(否则系统 ding), 故 focusable + onAppear 主动取焦;
+        // focusEffectDisabled 去掉焦点环。dismiss 在 MenuBarExtra 内即关闭整个弹窗。
+        .focusable()
+        .focusEffectDisabled()
+        .focused($escFocused)
+        .onAppear { escFocused = true }
+        .onExitCommand {
+            if showSettings || showLog || showSources {
+                // 子页面时 esc 先退回主页, 与各子页自带的关闭按钮同义。
+                showSettings = false
+                showLog = false
+                showSources = false
+            } else {
+                dismiss() // 主页时 esc 关闭整个弹窗, 与失焦隐藏一致。
+            }
+        }
     }
 
     private var main: some View {
