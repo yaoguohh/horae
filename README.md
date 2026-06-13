@@ -54,7 +54,11 @@ make install   # build binary → ~/.local/bin, generate & load the LaunchAgent
 
 ## Menu bar app
 
-`horae` ships an optional SwiftUI menu bar app — a thin, read-mostly frontend over the same engine and file contract. It shows live progress while updates run, a per-source status popover, an in-app log viewer, source management (add/remove from presets or edit the recipe directly), and owns the native notifications. The engine and LaunchAgent stay in charge; the app never becomes a hard dependency.
+`horae` ships an optional SwiftUI menu bar app — a thin, read-mostly frontend over the same engine and file contract. It shows live progress while updates run, a per-source status popover, an in-app log viewer, source management (add/remove from presets or edit the recipe directly), and owns the native notifications. Press `Esc` (or click outside) to dismiss the popover. The engine and LaunchAgent stay in charge; the app never becomes a hard dependency.
+
+<p align="center">
+  <img src="assets/screenshot.png" width="300" alt="Horae menu bar app — live progress and per-source status">
+</p>
 
 Download `Horae.dmg` from the [latest release](https://github.com/yaoguohh/horae/releases/latest), open it, and drag **Horae** to Applications. On first launch, right-click → Open once to clear Gatekeeper (the app is ad-hoc signed, not notarized). Or build from source:
 

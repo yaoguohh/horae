@@ -54,7 +54,11 @@ make install   # 编译二进制 → ~/.local/bin，生成并加载 LaunchAgent
 
 ## 菜单栏 app
 
-`horae` 附带一个可选的 SwiftUI 菜单栏 app —— 基于同一套引擎与文件契约的轻量前端（以读为主）。它在更新时显示实时进度、每源状态弹窗、内置日志查看器、源管理（从预设增删，或直接编辑 recipe），并接管原生通知。引擎与 LaunchAgent 始终是主导，app 不会变成硬依赖。
+`horae` 附带一个可选的 SwiftUI 菜单栏 app —— 基于同一套引擎与文件契约的轻量前端（以读为主）。它在更新时显示实时进度、每源状态弹窗、内置日志查看器、源管理（从预设增删，或直接编辑 recipe），并接管原生通知。按 `Esc`（或点击弹窗外）即可关闭弹窗。引擎与 LaunchAgent 始终是主导，app 不会变成硬依赖。
+
+<p align="center">
+  <img src="assets/screenshot.png" width="300" alt="Horae 菜单栏 app">
+</p>
 
 从 [最新 release](https://github.com/yaoguohh/horae/releases/latest) 下载 `Horae.dmg`，打开后把 **Horae** 拖进"应用程序"。首次启动右键 → 打开 一次以放行 Gatekeeper（app 为 ad-hoc 签名、未公证）。或从源码构建：
 
