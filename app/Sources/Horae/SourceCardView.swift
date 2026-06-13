@@ -37,13 +37,6 @@ struct SourceCardView: View {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(Color.horaeAmber.opacity(isUpdating ? 0.32 : 0), lineWidth: 1)
         )
-        .overlay(alignment: .bottom) {
-            if isUpdating {
-                ProgressView().progressViewStyle(.linear).controlSize(.small)
-                    .tint(.horaeAmber)
-                    .padding(.horizontal, 10).padding(.bottom, 2.5)
-            }
-        }
     }
 
     // MARK: 图标
