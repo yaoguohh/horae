@@ -65,9 +65,7 @@ struct SourceManageView: View {
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 5) {
                     Text(s.label ?? s.id).font(.system(size: 12, weight: .semibold)).lineLimit(1)
-                    Text(s.cadence).font(.system(size: 9, design: .monospaced)).foregroundStyle(.secondary)
-                        .padding(.horizontal, 4).padding(.vertical, 0.5)
-                        .background(Color.primary.opacity(0.08)).clipShape(RoundedRectangle(cornerRadius: 3))
+                    CadenceField(cadence: s.cadence) { setCadence(s, $0) }
                 }
                 Text(s.shell ?? (s.command?.joined(separator: " ") ?? ""))
                     .font(.system(size: 9, design: .monospaced)).foregroundStyle(.tertiary).lineLimit(1)
@@ -176,10 +174,71 @@ struct SourceManageView: View {
         reload()
     }
 
+    private func setCadence(_ s: ConfigStep, _ cadence: String) {
+        guard cadence != s.cadence else { return }
+        var updated = s
+        updated.cadence = cadence
+        Engine.configAdd(updated) // upsert: 只改 cadence, 其余字段(env/timeout/shell)原样保留
+        reload()
+    }
+
     private func reload() {
         Task.detached(priority: .utility) {
             let ss = Engine.configList()
             await MainActor.run { sources = ss }
         }
+    }
+}
+
+// CadenceField：数字框 + 单位下拉, 组合成 cadence(如 "3h")写回。比固定菜单灵活, 又比纯文本框防错。
+private struct CadenceField: View {
+    let cadence: String
+    let onChange: (String) -> Void
+
+    // 单位: 分/时/天/周(秒太细, 更新源用不到)。
+    private static let units: [(label: String, code: String)] = [("分", "m"), ("时", "h"), ("天", "d"), ("周", "w")]
+
+    @State private var num = ""
+    @State private var unit = "h"
+
+    var body: some View {
+        HStack(spacing: 3) {
+            TextField("", text: $num)
+                .textFieldStyle(.plain)
+                .multilineTextAlignment(.center)
+                .frame(width: 18)
+                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                .onSubmit(commit)
+                .padding(.vertical, 1)
+                .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 4))
+                // 淡蓝描边: 一眼看出是可输入的数字框。
+                .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.horaeAccent.opacity(0.4), lineWidth: 0.6))
+            Menu {
+                ForEach(Self.units, id: \.code) { u in
+                    Button(u.label) { unit = u.code; commit() }
+                }
+            } label: {
+                Text(unitLabel).font(.system(size: 9.5, weight: .semibold)).foregroundStyle(Color.horaeAccent)
+            }
+            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+        }
+        .onAppear(perform: parse)
+        .onChange(of: cadence) { parse() }
+    }
+
+    private var unitLabel: String { Self.units.first { $0.code == unit }?.label ?? unit }
+
+    // "3h" → num="3", unit="h"；单位非法回落到时。
+    private func parse() {
+        num = String(cadence.prefix { $0.isNumber })
+        let u = String(cadence.drop { $0.isNumber })
+        unit = Self.units.contains { $0.code == u } ? u : "h"
+    }
+
+    // num + unit → "3h"；仅正整数提交, 非法则回滚显示。
+    private func commit() {
+        guard let n = Int(num), n > 0 else { parse(); return }
+        let next = "\(n)\(unit)"
+        if next != cadence { onChange(next) }
     }
 }
