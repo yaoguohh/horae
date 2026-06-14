@@ -140,7 +140,7 @@ struct PopoverView: View {
             summaryItem(ok, "正常", .primary)
             if updating > 0 { summaryItem(updating, "更新中", .horaeAmber) }
             if failed > 0 { summaryItem(failed, "失败", red) }
-            if due > 0 { summaryItem(due, "即将到期", .primary) }
+            if due > 0 { summaryItem(due, "待更新", .primary) }
             if off > 0 { summaryItem(off, "已关闭", .secondary) }
             Spacer()
         }

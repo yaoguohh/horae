@@ -43,10 +43,10 @@ enum Format {
         return "\(day) \(t.string(from: date))"
     }
 
-    // countdown：距 due 的短格式(5h12m / 45m / ~8m)；已过则“到期”。
+    // countdown：距 due 的短格式(5h12m / 45m / ~8m)；已过则“待更新”(到点, 待下次触发执行)。
     static func countdown(to due: Date, now: Date = Date()) -> String {
         let secs = Int(due.timeIntervalSince(now))
-        if secs <= 0 { return "到期" }
+        if secs <= 0 { return "待更新" }
         let h = secs / 3600
         let m = (secs % 3600) / 60
         if h > 0 { return "\(h)h\(m)m" }
