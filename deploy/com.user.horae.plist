@@ -11,7 +11,7 @@
     <string>run</string>
   </array>
   <key>StartInterval</key>
-  <integer>3600</integer>
+  <integer>300</integer>
   <key>RunAtLoad</key>
   <true/>
   <key>EnvironmentVariables</key>
