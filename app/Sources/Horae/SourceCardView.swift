@@ -93,6 +93,15 @@ struct SourceCardView: View {
         return "尚未运行"
     }
 
+    // 未到期显示下次更新时刻; 已到期显示"待更新"(anacron 下精确触发时刻不可知, 不编造)。
+    // trailing 区窄, 用紧凑格式避免截断: 今天的源只给时刻(14:00), 跨天的给日期(06-16)。
+    private func nextText(_ due: Date) -> String {
+        guard due > Date() else { return "待更新" }
+        let f = DateFormatter()
+        f.dateFormat = Calendar.current.isDateInToday(due) ? "HH:mm" : "MM-dd"
+        return f.string(from: due)
+    }
+
     // MARK: 右侧
 
     private var trailing: some View {
@@ -105,8 +114,8 @@ struct SourceCardView: View {
             } else {
                 if source.enabled, let due = source.nextDueAt {
                     VStack(alignment: .trailing, spacing: 1) {
-                        Text("距下次").font(.system(size: 8, weight: .semibold)).foregroundStyle(.tertiary)
-                        Text(Format.countdown(to: due))
+                        Text("下次").font(.system(size: 8, weight: .semibold)).foregroundStyle(.tertiary)
+                        Text(nextText(due))
                             .font(.system(size: 10.5, design: .monospaced)).foregroundStyle(.secondary)
                     }
                 }
