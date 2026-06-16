@@ -33,11 +33,24 @@ shell   = "export HOMEBREW_FORCE_BREWED_CURL=1 HOMEBREW_NO_AUTO_UPDATE=1 HOMEBRE
 # Global npm packages. If npm / node aren't on the launchd PATH (/opt/homebrew/bin +
 # standard dirs) — e.g. a custom prefix like ~/.npm-global — inject it via env.PATH:
 #   env = { PATH = "/Users/<you>/.npm-global/bin:/opt/homebrew/bin:/usr/bin:/bin" }
+#
+# Keep the heavy `npm update -g` in its OWN step with a generous timeout: it pulls large
+# native CLI binaries (tens of MiB) over slow mirrors and easily exceeds the 15m default;
+# a hard kill mid-unpack leaves a half-installed global tree. Run the light checks (ncu)
+# as a separate step so one slow/broken package can't blow the whole budget.
 [[step]]
 id      = "npm-globals"
 label   = "npm globals"
 cadence = "3h"
-shell   = "npx npm-check-updates -g -u && npm update -g"
+timeout = "45m"
+shell   = "npm update -g"
+
+[[step]]
+id      = "npm-tools"
+label   = "npm tools"
+cadence = "3h"
+timeout = "15m"
+shell   = "npx npm-check-updates -g -u"
 
 # Disabled template: flip `enabled` to true to use. Use an absolute path if the
 # binary isn't on the injected PATH.

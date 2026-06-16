@@ -29,6 +29,7 @@ struct Current: Codable {
     var index: Int?
     var total: Int?
     var startedAt: Date?
+    var lastLine: String?
 }
 
 struct LastRun: Codable {

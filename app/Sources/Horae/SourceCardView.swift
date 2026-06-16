@@ -73,7 +73,17 @@ struct SourceCardView: View {
                     .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
                     .foregroundStyle(Color.horaeAmber)
             }
-            Text("建议稍候再启动此工具").font(.system(size: 9)).foregroundStyle(.tertiary)
+            // 实时输出行(更新器自己的 Downloading…/changed N packages 等); 缺省回落到提示。
+            if let line = current?.lastLine, !line.isEmpty {
+                Text(line)
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .help(line)
+            } else {
+                Text("建议稍候再启动此工具").font(.system(size: 9)).foregroundStyle(.tertiary)
+            }
         }
     }
 

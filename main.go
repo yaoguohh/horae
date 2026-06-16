@@ -164,12 +164,10 @@ func runDeps(logger *slog.Logger, dryRun bool) orchestrator.Deps {
 			logger.Error("逐步落盘失败", "err", err)
 		}
 	}
-	deps.OnStepStart = func(id, label string, index, total int) {
-		c := report.Current{Running: true, Step: id, Label: label, Index: index, Total: total, StartedAt: time.Now()}
-		if err := report.WriteCurrent(paths.Current(), c); err != nil {
-			logger.Warn("写 current.json 失败", "err", err)
-		}
-	}
+	// 实时进度：step 开始写 current.json；子进程每产出一行(节流)更新 LastLine，菜单栏 app 据此显示实时输出。
+	cw := newCurrentWriter(paths.Current(), logger)
+	deps.OnStepStart = cw.start
+	deps.Runner = runner.ExecRunner{OnLine: cw.line}
 	return deps
 }
 
