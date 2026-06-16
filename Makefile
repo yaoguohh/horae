@@ -2,8 +2,10 @@ BIN := $(HOME)/.local/bin/horae
 PLIST := $(HOME)/Library/LaunchAgents/com.user.horae.plist
 UID := $(shell id -u)
 
+# 构建产物放入 .noindex 目录: Spotlight/LaunchServices 不索引以 .noindex 结尾的目录,
+# 否则仓库内这份 bundle 会和已安装的 ~/Applications/Horae.app 同时出现在 Launchpad(两个图标)。
 APP_DIR := app
-APP_BUNDLE := $(APP_DIR)/Horae.app
+APP_BUNDLE := $(APP_DIR)/build.noindex/Horae.app
 APP_DEST := $(HOME)/Applications/Horae.app
 DMG := dist/Horae.dmg
 

@@ -7,7 +7,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 APP_DIR="$ROOT_DIR/app"
-BUNDLE="$APP_DIR/Horae.app"
+# .noindex 目录不被 Spotlight/LaunchServices 索引, 避免这份构建产物作为第二个 Horae 出现在 Launchpad
+# (已安装的 ~/Applications/Horae.app 才是唯一应被索引的副本)。
+BUNDLE="$APP_DIR/build.noindex/Horae.app"
 CONTENTS="$BUNDLE/Contents"
 MACOS="$CONTENTS/MacOS"
 RES="$CONTENTS/Resources"

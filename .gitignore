@@ -8,5 +8,7 @@
 # 设计过程产物(brainstorm/spec/mockup)，仅本地保留
 docs/superpowers/
 
-# 菜单栏 app 构建产物(.app bundle)，由 make app 生成，不入库
+# 菜单栏 app 构建产物(.app bundle)，由 make app 生成，不入库。
+# .noindex 后缀让 Spotlight/LaunchServices 不索引它(否则会和已安装副本一起在 Launchpad 显示两个图标)。
+/app/build.noindex/
 /app/*.app/
