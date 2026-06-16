@@ -9,7 +9,7 @@ APP_BUNDLE := $(APP_DIR)/build.noindex/Horae.app
 APP_DEST := $(HOME)/Applications/Horae.app
 DMG := dist/Horae.dmg
 
-.PHONY: build test vet fmt lint check install uninstall app install-app uninstall-app dmg
+.PHONY: build test vet fmt lint check install uninstall app install-app uninstall-app dmg release publish
 
 build:
 	go build -o horae .
@@ -67,3 +67,15 @@ install-app: app
 uninstall-app:
 	rm -rf $(APP_DEST)
 	@echo "Removed $(APP_DEST)."
+
+# Prepare a release locally (no push): quality gate + version bump + commit + tag + DMG +
+# signed appcast + notes draft. Usage: make release VERSION=0.2.1
+release:
+	@test -n "$(VERSION)" || { echo "用法: make release VERSION=x.y.z"; exit 1; }
+	bash scripts/release.sh $(VERSION)
+
+# Publish a prepared release (push main + tag, create GitHub release with assets).
+# Run make release first and edit dist/RELEASE_NOTES.md. Usage: make publish VERSION=0.2.1
+publish:
+	@test -n "$(VERSION)" || { echo "用法: make publish VERSION=x.y.z"; exit 1; }
+	bash scripts/publish.sh $(VERSION)
