@@ -4,11 +4,27 @@ struct SourceCardView: View {
     @EnvironmentObject var store: Store
     let source: Source
     let current: Current?
+    @State private var expanded = false
 
     private var isUpdating: Bool { current?.running == true && current?.step == source.id }
+    private var liveLines: [String] { current?.lastLines ?? [] }
 
     var body: some View {
-        HStack(spacing: 9) {
+        cardRow
+            .padding(.horizontal, 10).padding(.vertical, 7)
+            .background(isUpdating ? Color.horaeAmber.opacity(0.12) : Color.primary.opacity(0.035))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.horaeAmber.opacity(isUpdating ? 0.32 : 0), lineWidth: 1)
+            )
+            // step 结束(不再更新)时自动收起, 下次更新仍默认折叠。
+            .onChange(of: isUpdating) { _, now in if !now { expanded = false } }
+    }
+
+    // 顶对齐：展开后中列变高时, 图标与右侧保持在顶部, 不随高度漂移到垂直居中。
+    private var cardRow: some View {
+        HStack(alignment: .top, spacing: 9) {
             icon
             VStack(alignment: .leading, spacing: 1.5) {
                 HStack(spacing: 6) {
@@ -30,13 +46,6 @@ struct SourceCardView: View {
             Spacer(minLength: 6)
             trailing
         }
-        .padding(.horizontal, 10).padding(.vertical, 7)
-        .background(isUpdating ? Color.horaeAmber.opacity(0.12) : Color.primary.opacity(0.035))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.horaeAmber.opacity(isUpdating ? 0.32 : 0), lineWidth: 1)
-        )
     }
 
     // MARK: 图标
@@ -65,24 +74,46 @@ struct SourceCardView: View {
 
     // MARK: 正在更新 / 元信息
 
+    // 展开态用的行集合：折叠只给最后一行，展开给全部(同一个输出区，不另起带底色的模块)。
+    private var shownLines: [String] {
+        guard let last = liveLines.last else { return [] }
+        return expanded ? liveLines : [last]
+    }
+
     private var updatingLine: some View {
-        VStack(alignment: .leading, spacing: 0.5) {
+        VStack(alignment: .leading, spacing: 2) {
             TimelineView(.periodic(from: .now, by: 1)) { ctx in
                 let start = current?.startedAt ?? ctx.date
                 Text("正在更新… \(Format.elapsed(since: start, now: ctx.date))")
                     .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
                     .foregroundStyle(Color.horaeAmber)
             }
-            // 实时输出行(更新器自己的 Downloading…/changed N packages 等); 缺省回落到提示。
-            if let line = current?.lastLine, !line.isEmpty {
-                Text(line)
-                    .font(.system(size: 9, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .help(line)
-            } else {
+            // 同一个输出区：折叠显示最新一行(截断)，点开就把这若干行用同一种等宽次要色文字直接铺开
+            // (无底色/无边框)，展开时整行不截断、自动换行。缺省回落到提示。
+            if shownLines.isEmpty {
                 Text("建议稍候再启动此工具").font(.system(size: 9)).foregroundStyle(.tertiary)
+            } else {
+                Button { expanded.toggle() } label: {
+                    HStack(alignment: .top, spacing: 4) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            ForEach(Array(shownLines.enumerated()), id: \.offset) { _, ln in
+                                Text(ln)
+                                    .font(.system(size: 9.5, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(expanded ? nil : 1)
+                                    .truncationMode(.tail)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                        Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 7, weight: .bold))
+                            .foregroundStyle(.tertiary)
+                            .padding(.top, 2)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(expanded ? "收起实时输出" : "展开实时输出")
             }
         }
     }

@@ -11,6 +11,9 @@ import (
 // 节流避免 current.json 被 temp+rename 刷爆(每次 rename 都会触发菜单栏 app 重读)。
 const progressFlushInterval = 500 * time.Millisecond
 
+// maxProgressLines：current.json 里保留的最近实时输出行数(有界环)。折叠态显示末行，展开态显示全部。
+const maxProgressLines = 12
+
 // currentWriter 维护"当前在跑的 step"的实时进度(current.json)。OnStepStart 重置，OnLine 节流更新 LastLine。
 // runner 的 OnLine 已串行化，此处再用锁兜一层并保护跨 step 的并发可见性。
 type currentWriter struct {
@@ -35,14 +38,19 @@ func (c *currentWriter) start(id, label string, index, total int) {
 	c.flushLocked()
 }
 
-// line 在子进程每产出一行时调用：更新 LastLine 并节流写盘；跨 step 的陈旧行忽略。
+// line 在子进程每产出一行时调用：追加到有界环并节流写盘；跨 step 的陈旧行忽略。
 func (c *currentWriter) line(id, text string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.cur.Step != id {
 		return
 	}
-	c.cur.LastLine = text
+	c.cur.LastLines = append(c.cur.LastLines, text)
+	// 超出环上限即左移丢最旧；copy-shift 让 backing 数组维持在 maxProgressLines+1，不随 run 时长增长。
+	if n := len(c.cur.LastLines); n > maxProgressLines {
+		copy(c.cur.LastLines, c.cur.LastLines[n-maxProgressLines:])
+		c.cur.LastLines = c.cur.LastLines[:maxProgressLines]
+	}
 	if c.now().Sub(c.lastAt) < progressFlushInterval {
 		return
 	}
