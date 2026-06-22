@@ -15,19 +15,19 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.2.0</string>
+	<string>0.2.1</string>
 	<key>CFBundleVersion</key>
-	<string>5</string>
+	<string>6</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Horae</string>
-	<key>SUFeedURL</key>
-	<string>https://github.com/yaoguohh/horae/releases/latest/download/appcast.xml</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/yaoguohh/horae/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>A15NTiXJNGg+bdBSilDvtTnItRxHS+JA8568qlZLJS4=</string>
 </dict>
