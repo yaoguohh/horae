@@ -3,6 +3,7 @@ package recipe
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/pelletier/go-toml/v2"
 )
@@ -37,6 +38,15 @@ func (s Step) DisplayName() string {
 		return s.Label
 	}
 	return s.ID
+}
+
+// CommandPreview 返回该 step 将执行命令的可读单行表示，供菜单栏实时进度显示"将执行内容"。
+// shell 模式原样返回脚本串；命令模式以空格拼接 argv（仅用于展示，不参与执行）。
+func (s Step) CommandPreview() string {
+	if s.Shell != "" {
+		return s.Shell
+	}
+	return strings.Join(s.Command, " ")
 }
 
 func Load(path string) (Recipe, error) {

@@ -162,19 +162,20 @@ func TestRunOnStepStartFiresWithIndexTotal(t *testing.T) {
 	rec := recipe.Recipe{Steps: []recipe.Step{step("a", "6h", true), step("b", "6h", true)}}
 	fr := &fakeRunner{result: runner.Result{Outcome: runner.OutcomeSuccess}}
 	type call struct {
-		id           string
+		id, command  string
 		index, total int
 	}
 	var calls []call
-	deps := Deps{Runner: fr, Now: func() time.Time { return now }, OnStepStart: func(id, _ string, index, total int) {
-		calls = append(calls, call{id, index, total})
+	deps := Deps{Runner: fr, Now: func() time.Time { return now }, OnStepStart: func(id, _, command string, index, total int) {
+		calls = append(calls, call{id, command, index, total})
 	}}
 	Run(rec, state.State{}, deps, Options{})
 	if len(calls) != 2 {
 		t.Fatalf("OnStepStart should fire once per run step, got %d", len(calls))
 	}
-	if calls[0] != (call{"a", 1, 2}) || calls[1] != (call{"b", 2, 2}) {
-		t.Errorf("OnStepStart index/total wrong: %+v", calls)
+	// command 取 step.CommandPreview()（step 助手用 Command: ["true"]）。
+	if calls[0] != (call{"a", "true", 1, 2}) || calls[1] != (call{"b", "true", 2, 2}) {
+		t.Errorf("OnStepStart id/command/index/total wrong: %+v", calls)
 	}
 }
 

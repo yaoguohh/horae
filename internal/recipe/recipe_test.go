@@ -85,3 +85,20 @@ shell = "true"`, // command 与 shell 同时有
 		}
 	}
 }
+
+func TestCommandPreview(t *testing.T) {
+	cases := []struct {
+		name string
+		step Step
+		want string
+	}{
+		{"shell 原样返回", Step{Shell: "npm update -g && ncu -g"}, "npm update -g && ncu -g"},
+		{"command 以空格拼接", Step{Command: []string{"/opt/homebrew/bin/brew", "upgrade", "--cask"}}, "/opt/homebrew/bin/brew upgrade --cask"},
+		{"单命令", Step{Command: []string{"true"}}, "true"},
+	}
+	for _, c := range cases {
+		if got := c.step.CommandPreview(); got != c.want {
+			t.Errorf("%s: CommandPreview() = %q, want %q", c.name, got, c.want)
+		}
+	}
+}

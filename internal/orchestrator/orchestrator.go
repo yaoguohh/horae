@@ -17,8 +17,9 @@ type Deps struct {
 	// 用于逐步落盘：长 run 中途被 launchd SIGKILL（登出/关机）也不丢已完成的成功时间戳。
 	OnStepDone func(state.State)
 	// OnStepStart 在每个将执行的 step 开始前调用（可选；index 从 1 计，total=本轮将执行步数）。
-	// 用于写实时进度文件，供菜单栏 app 显示“正在更新 X”。
-	OnStepStart func(id, label string, index, total int)
+	// 用于写实时进度文件，供菜单栏 app 显示“正在更新 X”。command 为将执行命令的可读预览，
+	// 用作 live 输出区首行（npm 类工具在管道下静默，无此则全程无可展开内容）。
+	OnStepStart func(id, label, command string, index, total int)
 }
 
 type Options struct {
@@ -70,7 +71,7 @@ func Run(rec recipe.Recipe, st state.State, deps Deps, opts Options) ([]StepResu
 
 		idx++
 		if deps.OnStepStart != nil {
-			deps.OnStepStart(step.ID, step.DisplayName(), idx, total)
+			deps.OnStepStart(step.ID, step.DisplayName(), step.CommandPreview(), idx, total)
 		}
 		res := deps.Runner.Run(context.Background(), step, defaultTimeout, deps.BasePATH)
 		r.ExitCode, r.Duration, r.StderrTail = res.ExitCode, res.Duration, res.Stderr

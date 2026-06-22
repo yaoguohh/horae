@@ -31,10 +31,15 @@ func newCurrentWriter(path string, logger *slog.Logger) *currentWriter {
 }
 
 // start 在某 step 开始时调用：立即写一条 Running=true 的进度(清掉上一步残留的 LastLine)。
-func (c *currentWriter) start(id, label string, index, total int) {
+// command 非空时作 "$ <cmd>" 首行 seed：npm 类工具在管道下整段静默、仅结尾吐一小撮行，
+// 不 seed 则 live 区全程空白、菜单栏无可展开内容；命令即"要执行内容"，先行可见，真实输出再追加其后。
+func (c *currentWriter) start(id, label, command string, index, total int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.cur = report.Current{Running: true, Step: id, Label: label, Index: index, Total: total, StartedAt: c.now()}
+	if command != "" {
+		c.cur.LastLines = []string{"$ " + command}
+	}
 	c.flushLocked()
 }
 

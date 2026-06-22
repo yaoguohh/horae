@@ -41,7 +41,7 @@ func TestCurrentWriterThrottleStaleAndReset(t *testing.T) {
 		now:    func() time.Time { return clk },
 	}
 
-	cw.start("s1", "L1", 1, 2)
+	cw.start("s1", "L1", "", 1, 2)
 	if c := readCurrent(t, path); !c.Running || c.Step != "s1" || len(c.LastLines) != 0 {
 		t.Fatalf("start 应写 Running=s1 且无残留行, got %+v", c)
 	}
@@ -69,9 +69,31 @@ func TestCurrentWriterThrottleStaleAndReset(t *testing.T) {
 
 	// 新 step 开始清掉上一步残留的环。
 	clk = clk.Add(time.Second)
-	cw.start("s2", "L2", 2, 2)
+	cw.start("s2", "L2", "", 2, 2)
 	if c := readCurrent(t, path); c.Step != "s2" || len(c.LastLines) != 0 {
 		t.Errorf("start 新 step 应重置, got %+v", c)
+	}
+}
+
+// start 带命令时把"将执行内容"作首行喂入 live 区: npm 类工具在管道下整段静默,
+// 不 seed 的话菜单栏全程无可展开内容。命令落为 "$ <cmd>" 首行, 后续真实输出再追加其后。
+func TestCurrentWriterStartSeedsCommand(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "current.json")
+	clk := time.Date(2026, 6, 16, 10, 0, 0, 0, time.UTC)
+	cw := &currentWriter{
+		path:   path,
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		now:    func() time.Time { return clk },
+	}
+	cw.start("npm", "NPM", "npx ncu -g -u && npm update -g", 1, 1)
+	if c := readCurrent(t, path); len(c.LastLines) != 1 || c.LastLines[0] != "$ npx ncu -g -u && npm update -g" {
+		t.Fatalf("start 应把命令作 \"$ \" 首行 seed, got %+v", c.LastLines)
+	}
+	// 真实输出追加在命令行之后。
+	clk = clk.Add(progressFlushInterval)
+	cw.line("npm", "changed 2 packages")
+	if c := readCurrent(t, path); len(c.LastLines) != 2 || lastLine(c) != "changed 2 packages" {
+		t.Errorf("真实输出应追加在命令行后, got %+v", c.LastLines)
 	}
 }
 
@@ -84,7 +106,7 @@ func TestCurrentWriterRingCap(t *testing.T) {
 		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 		now:    func() time.Time { return clk },
 	}
-	cw.start("s", "L", 1, 1)
+	cw.start("s", "L", "", 1, 1)
 	total := maxProgressLines + 5
 	for i := 1; i <= total; i++ {
 		clk = clk.Add(progressFlushInterval) // 每行都越过节流, 确保落盘

@@ -91,7 +91,9 @@ struct SourceCardView: View {
             // 同一个输出区：折叠显示最新一行(截断)，点开就把这若干行用同一种等宽次要色文字直接铺开
             // (无底色/无边框)，展开时整行不截断、自动换行。缺省回落到提示。
             if shownLines.isEmpty {
-                Text("建议稍候再启动此工具").font(.system(size: 9)).foregroundStyle(.tertiary)
+                // 引擎会在 step 开始即 seed "$ <命令>" 首行, 正常跑动期间这里不会空;
+                // 仅读到旧引擎写的无命令进度时作中性兜底。
+                Text("准备执行…").font(.system(size: 9)).foregroundStyle(.tertiary)
             } else {
                 Button { expanded.toggle() } label: {
                     HStack(alignment: .top, spacing: 4) {
