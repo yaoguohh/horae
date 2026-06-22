@@ -132,10 +132,12 @@ enum Engine {
         return try? decoder.decode(StatusView.self, from: data)
     }
 
-    // triggerRun 异步触发一次更新(only 为某源 id 时只跑该源)。现有单实例锁与后台 run 协调。
-    static func triggerRun(only: String?) {
+    // triggerRun 异步触发一次更新(only 为某源 id 时只跑该源)。
+    // wait=true 时带 --wait: 撞单实例锁则排队等待上一轮结束再跑, 而非静默丢弃(手动触发用)。
+    static func triggerRun(only: String?, wait: Bool = false) {
         var args = ["run", "--force"]
         if let only { args = ["run", "--only", only, "--force"] }
+        if wait { args.append("--wait") }
         let p = makeProcess(args)
         p.standardOutput = FileHandle.nullDevice
         p.standardError = FileHandle.nullDevice

@@ -60,6 +60,7 @@ func cmdRun(args []string) int {
 	skipFlag := fs.String("skip", "", "跳过这些 step（逗号分隔）")
 	force := fs.Bool("force", false, "忽略 cadence 跑所有启用的 step")
 	dryRun := fs.Bool("dry-run", false, "只打印会跑什么，不执行")
+	wait := fs.Bool("wait", false, "撞锁时排队等待上一轮结束再跑（手动触发用，避免静默丢弃）")
 	_ = fs.Parse(args) // flag.ExitOnError：解析失败直接退出，返回值恒为 nil
 
 	rec, err := loadEffectiveRecipe(*cfg)
@@ -76,7 +77,7 @@ func cmdRun(args []string) int {
 
 	logger := newLogger()
 	if !*dryRun {
-		release, code, ok := acquireLock(logger)
+		release, code, ok := acquireLock(logger, *wait)
 		if !ok {
 			return code
 		}
@@ -129,9 +130,14 @@ func loadPause() control.Pause {
 	return p
 }
 
-// acquireLock 取单实例锁。ok=false 时调用方按 code 退出（撞锁→0，错误→1）。
-func acquireLock(logger *slog.Logger) (release func(), code int, ok bool) {
-	l, err := lock.Acquire(paths.Lock())
+// acquireLock 取单实例锁。wait=true 时撞锁阻塞排队（手动触发），否则撞锁跳过（cadence 触发）。
+// ok=false 时调用方按 code 退出（撞锁→0，错误→1）。
+func acquireLock(logger *slog.Logger, wait bool) (release func(), code int, ok bool) {
+	acquire := lock.Acquire
+	if wait {
+		acquire = lock.AcquireBlocking
+	}
+	l, err := acquire(paths.Lock())
 	if errors.Is(err, lock.ErrLocked) {
 		// 上一轮还在跑不是故障，正常退出，避免 launchd 把每次撞锁记成失败 run。
 		fmt.Fprintln(os.Stderr, "上一轮 horae 仍在运行，跳过本次")

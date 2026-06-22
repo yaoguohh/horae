@@ -7,16 +7,20 @@ struct SourceCardView: View {
     @State private var expanded = false
 
     private var isUpdating: Bool { current?.running == true && current?.step == source.id }
+    // 已点刷新、在排队等待执行(尚未轮到)。正在跑的源由 isUpdating 判定, 优先于排队态。
+    private var isQueued: Bool { store.queued.contains(source.id) && !isUpdating }
     private var liveLines: [String] { current?.lastLines ?? [] }
 
     var body: some View {
         cardRow
             .padding(.horizontal, 10).padding(.vertical, 7)
-            .background(isUpdating ? Color.horaeAmber.opacity(0.12) : Color.primary.opacity(0.035))
+            .background(isUpdating ? Color.horaeAmber.opacity(0.12)
+                : isQueued ? Color.horaeAmber.opacity(0.06)
+                : Color.primary.opacity(0.035))
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.horaeAmber.opacity(isUpdating ? 0.32 : 0), lineWidth: 1)
+                    .stroke(Color.horaeAmber.opacity(isUpdating ? 0.32 : isQueued ? 0.18 : 0), lineWidth: 1)
             )
             // step 结束(不再更新)时自动收起, 下次更新仍默认折叠。
             .onChange(of: isUpdating) { _, now in if !now { expanded = false } }
@@ -32,7 +36,7 @@ struct SourceCardView: View {
                         .font(.system(size: 12.5, weight: .semibold))
                         .foregroundStyle(source.enabled ? .primary : .secondary)
                         .lineLimit(1)
-                    if !isUpdating, let tag = statusTag(for: source) {
+                    if !isUpdating, !isQueued, let tag = statusTag(for: source) {
                         Text(tag.text)
                             .font(.system(size: 9, weight: .semibold))
                             .foregroundStyle(tag.color)
@@ -41,7 +45,7 @@ struct SourceCardView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                     }
                 }
-                if isUpdating { updatingLine } else { metaLine }
+                if isUpdating { updatingLine } else if isQueued { queuedLine } else { metaLine }
             }
             Spacer(minLength: 6)
             trailing
@@ -124,6 +128,13 @@ struct SourceCardView: View {
         Text(metaText).font(.system(size: 10.5, design: .monospaced)).foregroundStyle(.secondary).lineLimit(1)
     }
 
+    private var queuedLine: some View {
+        Text("排队中… 等待当前更新完成")
+            .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+            .foregroundStyle(Color.horaeAmber.opacity(0.85))
+            .lineLimit(1)
+    }
+
     private var metaText: String {
         if !source.enabled { return "不自动更新" }
         if let t = source.lastSuccessAt, t > .distantPast + 1 {
@@ -153,6 +164,12 @@ struct SourceCardView: View {
                 VStack(alignment: .trailing, spacing: 1) {
                     Text("运行中").font(.system(size: 8, weight: .semibold)).foregroundStyle(.tertiary)
                     ProgressView().controlSize(.small)
+                }
+            } else if isQueued {
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text("排队中").font(.system(size: 8, weight: .semibold)).foregroundStyle(.tertiary)
+                    Image(systemName: "hourglass").font(.system(size: 11))
+                        .foregroundStyle(Color.horaeAmber.opacity(0.8))
                 }
             } else {
                 if source.enabled, let due = source.nextDueAt {
