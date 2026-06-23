@@ -30,27 +30,34 @@ cadence = "1d"
 timeout = "20m"
 shell   = "export HOMEBREW_FORCE_BREWED_CURL=1 HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_CURL_RETRIES=1; brew upgrade --cask || true"
 
-# Global npm packages. If npm / node aren't on the launchd PATH (/opt/homebrew/bin +
-# standard dirs) — e.g. a custom prefix like ~/.npm-global — inject it via env.PATH:
-#   env = { PATH = "/Users/<you>/.npm-global/bin:/opt/homebrew/bin:/usr/bin:/bin" }
+# Global npm packages + native-CLI health gate.
 #
-# Keep the heavy `npm update -g` in its OWN step with a generous timeout: it pulls large
-# native CLI binaries (tens of MiB) over slow mirrors and easily exceeds the 15m default;
-# a hard kill mid-unpack leaves a half-installed global tree. Run the light checks (ncu)
-# as a separate step so one slow/broken package can't blow the whole budget.
+# WARNING: some global CLIs (e.g. @anthropic-ai/claude-code, @openai/codex) ship their
+# real ~200MB binary as a platform-specific optionalDependency. npm treats an optional
+# dep that fails to download as NON-FATAL: it omits it and still EXITS 0, leaving a
+# broken placeholder stub. So `npm update -g` can "succeed" (exit 0) while the tool is
+# actually broken -- and an orchestrator that trusts the exit code never notices. The
+# usual trigger is a slow mirror's lazy first-fetch of the big tarball exceeding npm's
+# 5-min fetch-timeout. Defend in two layers: (1) raise fetch-timeout so the big tarball
+# lands; (2) after updating, ASSERT each fragile CLI actually runs (`<bin> --version`);
+# on failure clean-reinstall to self-heal, and if still broken `exit 1` so the step fails
+# loudly (-> Horae records failure and notifies). Never trust npm's exit code here.
+#
+# If npm / node aren't on the launchd PATH (custom prefix like ~/.npm-global), add it via
+# the step's env.PATH (see below).
 [[step]]
-id      = "npm-globals"
+id      = "npm"
 label   = "npm globals"
 cadence = "3h"
-timeout = "45m"
-shell   = "npm update -g"
+timeout = "40m"
+shell   = 'npx npm-check-updates -g -u && npm update -g; rc=0; R=$(npm root -g); for s in "@anthropic-ai/claude-code|claude" "@openai/codex|codex"; do pkg=${s%%|*}; bin=${s##*|}; "$bin" --version >/dev/null 2>&1 && continue; echo "[horae] $bin broken, self-healing"; npm install -g "$pkg@latest" --foreground-scripts || true; cjs="$R/$pkg/install.cjs"; [ -f "$cjs" ] && node "$cjs" || true; "$bin" --version >/dev/null 2>&1 || { echo "[horae] $bin still broken" >&2; rc=1; }; done; exit $rc'
 
-[[step]]
-id      = "npm-tools"
-label   = "npm tools"
-cadence = "3h"
-timeout = "15m"
-shell   = "npx npm-check-updates -g -u"
+[step.env]
+# Big native tarballs (~200MB) on a cold mirror can take 10-12 min; npm's default 5-min
+# fetch-timeout would drop them as a failed optional dep. Raise it so they finish.
+npm_config_fetch_timeout = "1200000"
+# Custom npm prefix? Inject its bin dir (uncomment + edit):
+# PATH = "/Users/<you>/.npm-global/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
 # Disabled template: flip `enabled` to true to use. Use an absolute path if the
 # binary isn't on the injected PATH.
