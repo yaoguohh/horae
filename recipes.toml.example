@@ -36,15 +36,21 @@ shell   = "export HOMEBREW_FORCE_BREWED_CURL=1 HOMEBREW_NO_AUTO_UPDATE=1 HOMEBRE
 # real ~200MB binary as a platform-specific optionalDependency. npm treats an optional
 # dep that fails to download as NON-FATAL: it omits it and still EXITS 0, leaving a
 # broken placeholder stub. So `npm update -g` can "succeed" (exit 0) while the tool is
-# actually broken -- and an orchestrator that trusts the exit code never notices. The
-# usual trigger: on a new release the mirror has the small wrapper synced but the ~200MB
-# platform tarball not yet (lazy first-fetch), so npm drops the optional dep and exits 0.
-# Defend: (1) raise fetch-timeout so a cold tarball can finish; (2) after updating, ASSERT
-# each fragile CLI runs (`<bin> --version`); on failure self-heal -- first try its own
-# install.cjs (places an already-present binary), then clean-reinstall from the OFFICIAL
-# registry first (origin always has the new tarball; dodges mirror lag) with the mirror as
-# fallback; (3) if still broken `exit 1` so the step fails loudly (-> Horae notifies).
-# Never trust npm's exit code for these packages.
+# actually broken -- and an orchestrator that trusts the exit code never notices. The real
+# enemy is a flaky/truncated download of the big tarball (the mirror DOES carry it); npm's
+# default 2 retries give up fast and, being optional, it is silently dropped.
+# Defend in three layers:
+#  (1) raise fetch-retries + timeouts (env below) so the first `npm update -g` rides through
+#      transient resets and finishes the ~200MB download itself;
+#  (2) after updating, ASSERT each fragile CLI runs (`<bin> --version`); on failure self-heal:
+#      `npm cache verify` (drop partials) -> CLEAN install `@latest --include=optional` (not
+#      update-in-place; npm is unreliable resolving platform optional deps in place) -> then
+#      install the platform package BY NAME (`<pkg>-<platform>@<version>`), which makes it a
+#      REQUIRED dep (failure becomes fatal + retried + integrity-checked, instead of silently
+#      omitted) -> run install.cjs to copy the binary over the stub; official registry first,
+#      mirror as fallback;
+#  (3) if still broken `exit 1` so the step fails loudly (-> Horae records failure + notifies).
+# Never trust npm's exit code for these packages; `<bin> --version` is the only honest signal.
 #
 # If npm / node aren't on the launchd PATH (custom prefix like ~/.npm-global), add it via
 # the step's env.PATH (see below).
@@ -53,11 +59,15 @@ id      = "npm"
 label   = "npm globals"
 cadence = "3h"
 timeout = "40m"
-shell   = 'npx npm-check-updates -g -u && npm update -g; rc=0; R=$(npm root -g); for s in "@anthropic-ai/claude-code|claude" "@openai/codex|codex"; do pkg=${s%%|*}; bin=${s##*|}; "$bin" --version >/dev/null 2>&1 && continue; echo "[horae] $bin broken, self-healing"; cjs="$R/$pkg/install.cjs"; [ -f "$cjs" ] && node "$cjs" >/dev/null 2>&1; "$bin" --version >/dev/null 2>&1 && continue; for reg in https://registry.npmjs.org https://registry.npmmirror.com; do echo "[horae] reinstalling $pkg from $reg"; npm install -g "$pkg@latest" --registry="$reg" --foreground-scripts || true; [ -f "$cjs" ] && node "$cjs" || true; "$bin" --version >/dev/null 2>&1 && break; done; "$bin" --version >/dev/null 2>&1 || { echo "[horae] $bin still broken" >&2; rc=1; }; done; exit $rc'
+shell   = 'npx npm-check-updates -g -u && npm update -g; rc=0; R=$(npm root -g); PLAT=$(node -p "process.platform+\"-\"+process.arch" 2>/dev/null); for s in "@anthropic-ai/claude-code|claude" "@openai/codex|codex"; do pkg=${s%%|*}; bin=${s##*|}; "$bin" --version >/dev/null 2>&1 && continue; echo "[horae] $bin broken, self-healing"; cjs="$R/$pkg/install.cjs"; [ -f "$cjs" ] && node "$cjs" >/dev/null 2>&1; "$bin" --version >/dev/null 2>&1 && continue; npm cache verify >/dev/null 2>&1 || true; for reg in https://registry.npmjs.org https://registry.npmmirror.com; do echo "[horae] reinstalling $pkg from $reg (clean + explicit platform pkg)"; npm install -g "$pkg@latest" --include=optional --foreground-scripts --registry="$reg" || true; VER=$(node -p "require(\"$R/$pkg/package.json\").version" 2>/dev/null); [ -n "$VER" ] && npm install -g "$pkg-$PLAT@$VER" --foreground-scripts --registry="$reg" || true; [ -f "$cjs" ] && node "$cjs" || true; "$bin" --version >/dev/null 2>&1 && break; done; "$bin" --version >/dev/null 2>&1 || { echo "[horae] $bin still broken" >&2; rc=1; }; done; exit $rc'
 
 [step.env]
-# Big native tarballs (~200MB) on a cold mirror can take 10-12 min; npm's default 5-min
-# fetch-timeout would drop them as a failed optional dep. Raise it so they finish.
+# Big native tarballs (~200MB) over a slow/flaky link drop as a "failed optional dep" when
+# npm's default 2 retries / short timeouts give up. Raise them so the download rides through
+# transient resets and finishes.
+npm_config_fetch_retries = "8"
+npm_config_fetch_retry_mintimeout = "20000"
+npm_config_fetch_retry_maxtimeout = "600000"
 npm_config_fetch_timeout = "1200000"
 # Custom npm prefix? Inject its bin dir (uncomment + edit):
 # PATH = "/Users/<you>/.npm-global/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
