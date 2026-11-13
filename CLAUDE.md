@@ -2,7 +2,7 @@
 
 统一更新编排器。一份 TOML recipe 描述所有"命令式更新源"，单个 launchd 触发器驱动，按各源 cadence（anacron 式 + 睡眠补跑）执行，统一 state/日志/通知 + `status` 子命令。
 
-设计与取舍见 `docs/design.md`，实现计划见 `docs/plan.md`。
+设计与取舍见 `docs/design.md`。
 
 ## 结构
 
@@ -55,7 +55,3 @@ deploy/com.user.horae.plist   单 LaunchAgent 模板
 ## 质量门禁哲学
 
 便宜的检查跑得勤、贵的检查跑得稀：编辑器 LSP 实时 → 写完一组改动跑 `make check` → 合 main 前再跑一次。架构 / 设计层面的批量审查走全局 `enforcing-code-standards` skill（本项目不需要项目特化 skill）。
-
-## codegraph
-
-仓内已 `codegraph init`。写 / 改代码前先用 codegraph 查符号与调用关系（`codegraph context <task>` / `callers` / `callees`），别盲改。索引随文件变更需 `codegraph sync`。
