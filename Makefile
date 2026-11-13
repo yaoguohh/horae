@@ -9,7 +9,7 @@ APP_BUNDLE := $(APP_DIR)/build.noindex/Horae.app
 APP_DEST := $(HOME)/Applications/Horae.app
 DMG := dist/Horae.dmg
 
-.PHONY: build test vet fmt lint check install uninstall app install-app uninstall-app dmg release publish
+.PHONY: build test vet fmt lint check install uninstall app app-icon install-app uninstall-app dmg release publish
 
 build:
 	go build -o horae .
@@ -47,6 +47,10 @@ uninstall:
 # Engine must be installed separately (make install).
 app:
 	bash scripts/package-app.sh
+
+# App icon: regenerate app/AppIcon.icns (the H mark on a pale blue plate) from scripts/make-app-icon.swift.
+app-icon:
+	swift scripts/make-app-icon.swift app/AppIcon.icns
 
 # Installable disk image: Horae.app + an /Applications symlink, compressed (UDZO).
 dmg: app
