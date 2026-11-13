@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horae 弹窗</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+/* Horae 弹窗：单栏表格。每个事实一列——来源、上次、下次最早；系统材质；所有文字落在同一条左缘（x=40）。
+   来源的品牌小图标在最左。整体是灰白的，彩色只有三处：品牌小图标、进行中的蓝、未成功的一点暗红。
+   标志是淡蓝底上的蓝色 H，不随状态变；按钮都是灰色的，没有实心蓝按钮。
+   底部是一条工具栏：左边暂停或恢复自动更新，右边日志和设置。不常用的都在设置页里。 */
+.p {
+  --bg: rgba(246, 246, 247, 0.9);
+  --ink: rgba(0, 0, 0, 0.88);
+  --dim: rgba(0, 0, 0, 0.6);
+  --faint: rgba(0, 0, 0, 0.38);
+  --line: rgba(0, 0, 0, 0.09);
+  --hover: rgba(0, 0, 0, 0.055);
+  --ctl: rgba(0, 0, 0, 0.07);
+  --accent: #005fd1;
+  --tint: rgba(0, 104, 224, 0.12);
+  --bad: #b23a30;
+  --bad-bg: rgba(178, 58, 48, 0.05);
+  --menu: rgba(250, 250, 251, 0.98);
+  --edge: rgba(0, 0, 0, 0.16);
+  --sel: rgba(0, 104, 224, 0.2);
+  --sw-on: #3c3c40;
+  --sw-knob: #ffffff;
+}
+html[data-theme="dark"] .p {
+  --bg: rgba(38, 38, 41, 0.9);
+  --ink: rgba(255, 255, 255, 0.92);
+  --dim: rgba(255, 255, 255, 0.64);
+  --faint: rgba(255, 255, 255, 0.38);
+  --line: rgba(255, 255, 255, 0.11);
+  --hover: rgba(255, 255, 255, 0.08);
+  --ctl: rgba(255, 255, 255, 0.11);
+  --accent: #6cb2ff;
+  --tint: rgba(108, 178, 255, 0.18);
+  --bad: #e5837a;
+  --bad-bg: rgba(229, 131, 122, 0.08);
+  --menu: rgba(48, 48, 52, 0.98);
+  --edge: rgba(255, 255, 255, 0.18);
+  --sel: rgba(108, 178, 255, 0.3);
+  --sw-on: #dcdce0;
+  --sw-knob: #2a2a2d;
+}
+.p {
+  position: relative;
+  width: 344px;
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 16px;
+  -webkit-backdrop-filter: blur(34px) saturate(1.7);
+  backdrop-filter: blur(34px) saturate(1.7);
+  box-shadow: 0 0 0 0.5px var(--edge), 0 16px 40px rgba(0, 0, 0, 0.26), 0 2px 6px rgba(0, 0, 0, 0.1);
+  padding-bottom: 6px;
+}
+.p ::selection { background: var(--sel); }
+.p svg { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; display: block; }
+.p button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* 头部：标志占图标列，标题落在名称的左缘上 */
+.hd { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; column-gap: 8px; align-items: center; padding: 12px 14px 10px; }
+.tile { width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; background: var(--tint); color: var(--accent); }
+.tile svg { width: 12px; height: 12px; stroke-width: 2.2; }
+.hd-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hd-sub { margin-top: 1px; font-size: 11px; line-height: 14px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn { height: 22px; padding: 0 9px; border-radius: 5.5px; background: var(--ctl); font-size: 12px; line-height: 15px; font-weight: 500; white-space: nowrap; }
+.btn:hover { filter: brightness(0.94); }
+.btn.on { background: var(--tint); color: var(--accent); }
+.btn.sq { width: 22px; padding: 0; display: grid; place-items: center; }
+.btn.sq svg { width: 14px; height: 14px; }
+
+/* 状态图形：运行是蓝弧，未成功是一个小红点，排队是虚线环；成功不放图形 */
+.g { width: 14px; height: 14px; flex: none; }
+.g-run .trk { stroke: var(--line); }
+.g-run .arc { stroke: var(--accent); transform-origin: 8px 8px; animation: hz-spin 0.9s linear infinite; }
+.dot-bad { width: 6px; height: 6px; margin: 0 1px; border-radius: 50%; background: var(--bad); flex: none; }
+.g-queued { color: var(--faint); }
+@media (prefers-reduced-motion: reduce) { .g-run .arc { animation: none; } }
+
+.ic { width: 18px; height: 18px; border-radius: 5px; display: block; }
+.is-disabled .ic, .is-missing .ic { filter: grayscale(1); opacity: 0.5; }
+.is-disabled .c-name { color: var(--dim); }
+.c-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-val { display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; font-size: 11px; line-height: 14px; color: var(--dim); white-space: nowrap; }
+.c-val.is-bad { color: var(--bad); }
+.c-val.is-run { color: var(--accent); font-weight: 500; }
+
+/* 表头与行共用同一组列 */
+.cols, .row { display: grid; grid-template-columns: 18px minmax(0, 1fr) 52px 76px; column-gap: 8px; }
+.cols { padding: 0 14px 4px; font-size: 11px; line-height: 14px; color: var(--dim); border-bottom: 0.5px solid var(--line); }
+.r { text-align: right; }
+.list { padding: 4px 6px; max-height: 330px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--faint) transparent; }
+.row { position: relative; align-items: baseline; padding: 6px 8px; border-radius: 6px; }
+.row:hover, .row.is-hover { background: var(--hover); }
+.row > .ic, .row > .c-val { align-self: center; }
+.row.two > .ic { align-self: start; }
+.row.two > .c-val { align-self: start; margin-top: 2px; }
+.row > .c-val { grid-column: 3 / 5; }
+.c-time { font-size: 11px; line-height: 14px; color: var(--dim); text-align: right; white-space: nowrap; }
+.c-time.now { color: var(--ink); }
+.c-sub { grid-column: 2 / -1; display: flex; align-items: center; gap: 6px; min-width: 0; margin: 2px 0 -3px; padding-bottom: 3px; font-size: 11px; line-height: 14px; color: var(--dim); text-align: left; }
+.c-sub > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-sub > svg { width: 10px; height: 10px; flex: none; color: var(--faint); }
+.c-sub.open { align-items: flex-start; }
+.c-sub.open > span { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* 悬停时两列时间让位给操作，位置与宽度不变 */
+.c-acts { position: absolute; right: 8px; top: 4px; display: none; gap: 4px; }
+.row:hover .c-acts, .row.is-hover .c-acts { display: flex; }
+.row.has-acts:hover .hide, .row.has-acts.is-hover .hide { visibility: hidden; }
+
+/* 底部工具栏：左边一个带图标的文字按钮，右边两个图标按钮 */
+.ft { display: flex; align-items: center; gap: 2px; margin-top: 2px; padding: 5px 9px 0 8px; border-top: 0.5px solid var(--line); }
+.ft-main { display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 8px 0 6px; border-radius: 6px; font-size: 12px; line-height: 15px; white-space: nowrap; min-width: 0; }
+.ft-main:hover, .tool:hover { background: var(--hover); }
+.ft-main > svg:first-child { width: 14px; height: 14px; margin: 0 2px; color: var(--dim); }
+.ft-main.is-paused > svg:first-child { color: var(--accent); }
+.ft-main .chev svg { width: 10px; height: 10px; margin-left: -4px; color: var(--dim); }
+.ft-note { font-size: 11px; line-height: 14px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ft .sp { flex: 1; min-width: 4px; }
+.tool { width: 26px; height: 26px; border-radius: 6px; display: grid; place-items: center; color: var(--dim); flex: none; }
+.tool:hover { color: var(--ink); }
+.tool svg { width: 15px; height: 15px; }
+
+.fly { position: absolute; z-index: 5; padding: 4px; white-space: nowrap; border-radius: 8px; background: var(--menu); box-shadow: 0 0 0 0.5px var(--edge), 0 10px 28px rgba(0, 0, 0, 0.24); }
+.mi { display: flex; align-items: center; width: 100%; height: 24px; padding: 0 10px; border-radius: 6px; text-align: left; }
+.mi:hover { background: var(--hover); }
+.fly.pause { left: 8px; bottom: 38px; }
+.fly.rowmenu { right: 8px; top: 28px; }
+
+/* 次级页：返回箭头占图标列，标题与内容仍在 x=40 */
+.sub-hd { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto auto; column-gap: 8px; align-items: center; padding: 11px 14px 9px; border-bottom: 0.5px solid var(--line); }
+.back { width: 22px; height: 22px; margin: 0 -2px; border-radius: 5.5px; display: grid; place-items: center; }
+.back:hover { background: var(--hover); }
+.back svg { width: 14px; height: 14px; }
+.sub-hd h2 { font-size: 13px; line-height: 16px; font-weight: 600; }
+.scroll { max-height: 430px; overflow-y: auto; padding: 4px 6px 2px; scrollbar-width: thin; scrollbar-color: var(--faint) transparent; }
+.sec { padding: 8px 8px 3px 34px; font-size: 11px; line-height: 14px; font-weight: 600; color: var(--dim); }
+.lrow { display: grid; grid-template-columns: 18px 38px minmax(0, 1fr) auto; column-gap: 8px; align-items: center; width: 100%; padding: 5px 8px; border-radius: 6px; text-align: left; }
+.lrow:hover { background: var(--hover); }
+.lrow .ic { width: 16px; height: 16px; border-radius: 4.5px; margin: 0 1px; }
+.l-time { font-size: 11px; line-height: 14px; color: var(--dim); }
+.detail { margin: 0 8px 6px 34px; padding: 8px 10px; border-radius: 7px; background: var(--bad-bg); }
+.detail p { font-size: 11px; line-height: 14px; color: var(--dim); }
+.detail pre { margin: 6px 0 8px; font-size: 11px; line-height: 15px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); user-select: text; }
+.detail .acts { display: flex; gap: 6px; }
+.srow { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto auto; column-gap: 8px; align-items: center; padding: 6px 8px; border-radius: 6px; }
+.srow:hover { background: var(--hover); }
+.s-main { min-width: 0; }
+.s-cmd { margin-top: 1px; font-size: 11px; line-height: 14px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cad { display: inline-flex; align-items: center; gap: 2px; height: 20px; padding: 0 4px 0 7px; border-radius: 5px; background: var(--ctl); font-size: 12px; line-height: 15px; white-space: nowrap; }
+.cad svg { width: 12px; height: 12px; color: var(--dim); }
+.sw { width: 26px; height: 15px; border-radius: 8px; background: var(--sw-on); position: relative; flex: none; }
+.sw::after { content: ""; position: absolute; top: 1.5px; right: 1.5px; width: 12px; height: 12px; border-radius: 50%; background: var(--sw-knob); box-shadow: 0 0.5px 1.5px rgba(0, 0, 0, 0.3); }
+.sw.off { background: var(--faint); }
+.sw.off::after { right: auto; left: 1.5px; background: #fff; }
+.tag { font-size: 11px; line-height: 14px; color: var(--dim); white-space: nowrap; }
+/* 设置页的行：图标列放一个小线条图标，文字在 x=40 */
+.setrow { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; column-gap: 8px; align-items: center; width: 100%; padding: 7px 8px; border-radius: 6px; text-align: left; }
+button.setrow:hover { background: var(--hover); }
+.setrow > svg:first-child { width: 15px; height: 15px; margin: 0 1.5px; color: var(--dim); }
+.setrow > svg:last-child { width: 12px; height: 12px; color: var(--faint); }
+.sep { height: 0; margin: 4px 8px 4px 34px; border-top: 0.5px solid var(--line); }
+.pg-ft { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; padding: 7px 14px 2px 40px; border-top: 0.5px solid var(--line); font-size: 11px; line-height: 14px; color: var(--dim); }
+.pg-ft.link { padding: 5px 9px 0 8px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="shared.js"></script>
+<script>
+(function () {
+  const H = window.Horae;
+  const { esc, icon, brand } = H;
+  const g = (cls, inner) => `<svg class="g ${cls}" viewBox="0 0 16 16" aria-hidden="true">${inner}</svg>`;
+  const G = {
+    running: g('g-run', '<circle class="trk" cx="8" cy="8" r="5.5"/><path class="arc" d="M8 2.5a5.5 5.5 0 0 1 5.5 5.5"/>'),
+    bad: '<span class="dot-bad" aria-hidden="true"></span>',
+    queued: g('g-queued', '<circle cx="8" cy="8" r="5.5" stroke-dasharray="2.1 2.3"/>'),
+  };
+
+  // 进行中、排队、未成功的行，右侧是带图形的状态
+  function val(s, sc, k) {
+    if (k === 'running') return `<span class="c-val is-run num">${G.running}正在更新　${H.elapsedTag(sc.current.elapsed)}</span>`;
+    if (k === 'queued') return `<span class="c-val">${G.queued}排队中</span>`;
+    return `<span class="c-val is-bad hide">${G.bad}${s.word}</span>`;
+  }
+  const rowActs = (s, k) =>
+    k === 'disabled'
+      ? '<span class="c-acts"><button class="btn">启用</button></span>'
+      : `<span class="c-acts"><button class="btn">${k === 'bad' ? '重试' : '更新'}</button><button class="btn sq" data-set="menu=${s.id}" title="更多">${icon('more')}</button></span>`;
+
+  function row(s, sc, view) {
+    const k = H.kindOf(s);
+    const cls = ['row', 'is-' + k];
+    let right;
+    let sub = '';
+    let acts = '';
+    if (k === 'running') {
+      const open = !!view.ui.live;
+      const lines = sc.current.lines;
+      right = val(s, sc, k);
+      sub = `<button class="c-sub mono${open ? ' open' : ''}" data-toggle="live" title="${open ? '收起' : '展开'}实时输出"><span>${esc((open ? lines : lines.slice(-1)).join('\n'))}</span>${icon(open ? 'chevD' : 'chevR')}</button>`;
+      cls.push('two');
+    } else if (k === 'queued') {
+      right = val(s, sc, k);
+    } else if (k === 'bad') {
+      right = val(s, sc, k);
+      sub = `<button class="c-sub" data-nav="log" data-keep="open=${s.id}" title="查看输出"><span>${esc(s.reason)} · ${H.day(s.last)} · 最早 ${s.next} 自动重试</span>${icon('chevR')}</button>`;
+      acts = rowActs(s, k);
+      cls.push('two', 'has-acts');
+    } else {
+      right = `<span class="c-time num hide">${s.last || '尚未运行'}</span><span class="c-time num hide${s.due && !sc.paused ? ' now' : ''}"${H.shifted(s, sc) ? ' title="因暂停顺延"' : ''}>${H.nextText(s, sc)}</span>`;
+      acts = rowActs(s, k);
+      cls.push('has-acts');
+    }
+    if (view.ui.hover === s.id || view.ui.menu === s.id) cls.push('is-hover');
+    const fly = view.ui.menu === s.id ? '<div class="fly rowmenu"><button class="mi" data-nav="log">查看日志</button><button class="mi" data-nav="sources">修改周期</button><button class="mi">停用</button></div>' : '';
+    return `<div class="${cls.join(' ')}">${brand(s.id)}<span class="c-name" title="${esc(s.label)}">${esc(s.label)}</span>${right}${sub}${acts}${fly}</div>`;
+  }
+
+  function main(view, sc) {
+    const v = H.verdict(sc);
+    // 暂停的状态与控制固定在底部左侧这一处
+    const left = sc.paused
+      ? `<button class="ft-main is-paused" title="恢复自动更新">${icon('play')}恢复自动更新</button><span class="ft-note num">已暂停至${sc.paused.until}</span>`
+      : `<button class="ft-main" data-toggle="pauseMenu" title="暂停自动更新">${icon('pause')}暂停自动更新<span class="chev">${icon('chevD')}</span></button>`;
+    const fly = view.ui.pauseMenu ? '<div class="fly pause"><button class="mi">暂停 1 小时</button><button class="mi">暂停到今天结束</button><button class="mi">暂停直到手动恢复</button></div>' : '';
+    return `<div class="p">
+      <header class="hd"><span class="tile">${H.marks.idle}</span><div style="min-width:0"><div class="hd-title">${esc(v.title)}</div><div class="hd-sub">${v.sub}</div></div><button class="btn">全部更新</button></header>
+      <div class="cols"><span></span><span>来源</span><span class="r">上次</span><span class="r">下次最早</span></div>
+      <div class="list">${sc.sources.map((s) => row(s, sc, view)).join('')}</div>
+      <footer class="ft">${left}<span class="sp"></span><button class="tool" data-nav="log" title="运行日志">${icon('log')}</button><button class="tool" data-nav="settings" title="设置">${icon('gear')}</button></footer>${fly}
+    </div>`;
+  }
+
+  // ---------- 次级页 ----------
+  const subHead = (title, back, extra) => `<header class="sub-hd"><button class="back" data-nav="${back}" title="返回">${icon('chevL')}</button><h2>${title}</h2>${extra || ''}</header>`;
+
+  function log(view, sc) {
+    const only = !!view.ui.onlyBad;
+    const rows = sc.log.filter((e) => !only || e.status !== 'success');
+    const firstBad = (sc.log.find((e) => e.status !== 'success') || {}).id;
+    const openId = view.ui.open === undefined ? firstBad : view.ui.open;
+    let lastDay = '';
+    let out = '';
+    rows.forEach((e) => {
+      if (e.day !== lastDay) {
+        out += `<div class="sec">${e.day}</div>`;
+        lastDay = e.day;
+      }
+      const bad = e.status !== 'success';
+      out += `<button class="lrow"${bad ? ` data-set="open=${e.id}"` : ''}>${brand(e.id)}<span class="l-time num">${e.time}</span><span class="c-name">${esc(e.label)}</span>${bad ? `<span class="c-val is-bad num">${G.bad}${e.status === 'timeout' ? '超时' : '失败'}　${e.dur}</span>` : `<span class="c-val num">${e.dur}</span>`}</button>`;
+      if (bad && openId === e.id) out += `<div class="detail"><p>${esc(e.reason)}</p><pre class="mono">${esc(e.tail.join('\n'))}</pre><div class="acts"><button class="btn">重试</button><button class="btn">拷贝输出</button></div></div>`;
+    });
+    if (!rows.length) out = '<div class="sec">近 14 天没有未成功的记录</div>';
+    return `<div class="p">${subHead('运行日志', 'main', `<button class="btn${only ? ' on' : ''}" data-toggle="onlyBad">只看未成功</button><button class="btn sq" title="打开日志文件夹">${icon('folder')}</button>`)}<div class="scroll">${out}</div></div>`;
+  }
+
+  function settings(view, sc) {
+    return `<div class="p">${subHead('设置', 'main')}
+      <div class="scroll" style="padding-top:6px">
+        <button class="setrow" data-nav="sources">${icon('stack')}<div><div class="c-name">管理来源</div><div class="s-cmd num">${sc.sources.length} 个来源</div></div>${icon('chevR')}</button>
+        <div class="sep"></div>
+        <div class="setrow">${icon('bell')}<div><div class="c-name">通知</div><div class="s-cmd">何时发送系统通知</div></div><span class="cad">有变更时${icon('updown')}</span></div>
+        <div class="setrow">${icon('power')}<div><div class="c-name">登录时打开</div><div class="s-cmd">在菜单栏常驻</div></div><span class="sw off" role="switch" aria-checked="false"></span></div>
+        <div class="setrow">${icon('download')}<div><div class="c-name">软件更新</div><div class="s-cmd">后台自动检查</div></div><button class="btn">检查新版本</button></div>
+      </div>
+      <div class="pg-ft"><span class="num">Horae 0.2.1</span><button class="btn">退出 Horae</button></div>
+    </div>`;
+  }
+
+  function sources(view, sc) {
+    const cur = sc.sources
+      .map((s) => `<div class="srow${s.enabled ? '' : ' is-disabled'}">${brand(s.id)}<div class="s-main"><div class="c-name" title="${esc(s.label)}">${esc(s.label)}</div><div class="s-cmd mono">${esc(s.cmd)}</div></div><span class="cad num">${s.cadence}${icon('updown')}</span><span class="sw${s.enabled ? '' : ' off'}" role="switch" aria-checked="${s.enabled}" title="${s.enabled ? '已启用' : '已停用：自动和手动都会跳过'}"></span></div>`)
+      .join('');
+    const add = sc.presets
+      .map((p) => `<div class="srow${p.installed ? '' : ' is-missing'}">${brand(p.label.replace('Go-installed', 'go'))}<div class="s-main"><div class="c-name" title="${esc(p.label)}">${esc(p.label)}</div><div class="s-cmd">${p.cadence} · ${esc(p.detail)}</div></div><span class="tag">${p.installed ? '' : '未安装'}</span><button class="btn">添加</button></div>`)
+      .join('');
+    return `<div class="p">${subHead('管理来源', 'settings')}<div class="scroll"><div class="sec">已添加　关掉开关后，自动和手动都会跳过</div>${cur}<div class="sec">可添加</div>${add}</div><div class="pg-ft link"><button class="ft-main">${icon('out')}在编辑器中打开 recipes.toml</button></div></div>`;
+  }
+
+  H.mount({
+    render: (view, sc) => (view.page === 'log' ? log(view, sc) : view.page === 'sources' ? sources(view, sc) : view.page === 'settings' ? settings(view, sc) : main(view, sc)),
+  });
+})();
+</script>
+</body>
+</html>

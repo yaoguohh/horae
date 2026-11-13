@@ -30,6 +30,13 @@ final class Store: ObservableObject {
     // queued：用户点了刷新但尚未跑完的源(从点击到该步执行结束)。引擎单实例锁串行执行,
     // 这里只为 UI 展示"排队中" + 去重(避免重复 spawn)。正在跑的源由 current 判定显示"正在更新"。
     @Published private(set) var queued: Set<String> = []
+    // 配方里的来源定义(周期、命令)与运行日志：弹窗打开时、运行结束后、增删改来源后重读。
+    @Published private(set) var steps: [ConfigStep] = []
+    @Published private(set) var log: [LogEntry] = []
+    // 预设随 app 打包，不会变。
+    let presets = Engine.loadPresets()
+    // 菜单栏标志的动画帧，只由菜单栏标签观察。
+    let markClock = MarkClock()
 
     private var watcher: DirectoryWatcher?
     private var timer: Timer?
@@ -48,7 +55,10 @@ final class Store: ObservableObject {
             lastRun = lr
         }
         current = Engine.read(Engine.currentURL)
+        markClock.setRunning(current?.running == true)
         refreshStatus()
+        reloadSteps()
+        reloadLog()
         startWatching()
         timer = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
@@ -59,28 +69,56 @@ final class Store: ObservableObject {
         // [weak self] 打破 Store→watcher→DispatchSource→闭包→Store 保留环，
         // 与下方 timer 的弱引用约定一致，确保 Store 释放时 watcher 能正常 cancel/close(fd)。
         watcher = DirectoryWatcher(url: Engine.stateDir) { [weak self] in
-            Task { @MainActor in self?.onDirChange() }
+            Task { @MainActor in self?.tick() }
         }
-    }
-
-    private func onDirChange() {
-        current = Engine.read(Engine.currentURL)
-        reconcileQueue()
-        if let lr: LastRun = Engine.read(Engine.lastRunURL) {
-            handleLastRun(lr)
-            lastRun = lr
-        }
-        refreshStatus()
     }
 
     func tick() {
         current = Engine.read(Engine.currentURL)
+        markClock.setRunning(current?.running == true)
         reconcileQueue()
         if let lr: LastRun = Engine.read(Engine.lastRunURL) {
             handleLastRun(lr)
+            // 一轮结束会同时写日志：last-run 换了就重读日志，运行日志与失败输出跟着更新。
+            if lr.finishedAt != lastRun?.finishedAt { reloadLog() }
             lastRun = lr
         }
         refreshStatus()
+    }
+
+    // popoverOpened：弹窗每次打开时重读配方与日志(用户可能手改了 recipes.toml)。
+    func popoverOpened() {
+        reloadSteps()
+        reloadLog()
+    }
+
+    // board 是弹窗此刻需要的全部事实(状态规则见 Board)。
+    func board(now: Date = Date()) -> Board {
+        Board(
+            now: now,
+            sources: status?.sources ?? [],
+            current: current,
+            queued: queued,
+            paused: status?.paused == true,
+            pausedUntil: status?.pausedUntil,
+            lastRun: lastRun,
+            steps: Dictionary(steps.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }),
+            log: log
+        )
+    }
+
+    private func reloadSteps() {
+        Task.detached(priority: .utility) {
+            let s = Engine.configList()
+            await MainActor.run { self.steps = s }
+        }
+    }
+
+    private func reloadLog() {
+        Task.detached(priority: .utility) {
+            let l = Engine.recentLogEntries()
+            await MainActor.run { self.log = l }
+        }
     }
 
     // reconcileQueue：当某步不再是"当前运行步"(切到下一步或整轮结束)即视为已跑完, 移出 queued。
@@ -144,6 +182,41 @@ final class Store: ObservableObject {
     func resume() {
         Engine.writePause(Pause(paused: false, until: nil))
         tick()
+    }
+
+    // MARK: 来源管理(config 子命令读写 recipes.toml)
+
+    func add(_ preset: Preset) {
+        let step = ConfigStep(
+            id: preset.id, label: preset.label, cadence: preset.cadence,
+            command: nil, shell: preset.shell, timeout: nil, env: nil, enabled: nil
+        )
+        editRecipe { Engine.configAdd(step) }
+    }
+
+    func remove(_ id: String) {
+        queued.remove(id)
+        editRecipe { Engine.configRemove(id) }
+    }
+
+    // setCadence 只改周期：以 config list 读到的完整定义 upsert，env/timeout/shell 原样保留。
+    func setCadence(_ id: String, _ cadence: Cadence) {
+        guard var step = steps.first(where: { $0.id == id }), step.cadence != cadence.text else { return }
+        step.cadence = cadence.text
+        let updated = step
+        editRecipe { Engine.configAdd(updated) }
+    }
+
+    // editRecipe 在后台跑一次 config 子命令，然后重读配方与状态。
+    private func editRecipe(_ edit: @escaping @Sendable () -> Void) {
+        Task.detached(priority: .userInitiated) {
+            edit()
+            let s = Engine.configList()
+            await MainActor.run {
+                self.steps = s
+                self.refreshStatus()
+            }
+        }
     }
 
     // 触发后稍候再刷新，吃到 current/last-run 的首个变更。

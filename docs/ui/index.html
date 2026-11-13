@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horae 弹窗设计</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+html { --pick: #1b1d21; --on-pick: #ffffff; }
+html[data-theme="dark"] { --pick: #eceef1; --on-pick: #131518; }
+body { font-size: 14px; line-height: 22px; }
+a { color: inherit; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+::selection { background: color-mix(in srgb, var(--page-ink) 18%, transparent); }
+.wrap { max-width: 1340px; margin: 0 auto; padding: 0 28px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 32px; padding: 30px 0 18px; border-bottom: 1px solid var(--page-line); }
+.top h1 { font-size: 26px; line-height: 34px; font-weight: 650; letter-spacing: -0.015em; }
+.top p { max-width: 62ch; margin-top: 4px; color: var(--page-dim); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.grp { display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 16px; color: var(--page-dim); }
+.seg { display: inline-flex; padding: 2px; border-radius: 8px; background: color-mix(in srgb, var(--page-ink) 8%, transparent); }
+.seg button { height: 26px; padding: 0 10px; border-radius: 6px; font-size: 13px; line-height: 18px; color: var(--page-dim); white-space: nowrap; }
+.seg button:hover { color: var(--page-ink); }
+.seg button[aria-pressed="true"] { background: var(--pick); color: var(--on-pick); font-weight: 500; }
+
+.band { padding: 22px 0 10px; }
+.band > h2 { font-size: 20px; line-height: 26px; font-weight: 650; letter-spacing: -0.01em; }
+.band > p { max-width: 74ch; margin-top: 4px; color: var(--page-dim); }
+.shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(388px, 1fr)); gap: 26px 28px; margin-top: 16px; align-items: start; }
+figure { min-width: 0; }
+figcaption { margin-bottom: 8px; }
+figcaption b { display: block; font-size: 15px; line-height: 22px; font-weight: 600; }
+figcaption span { display: block; font-size: 13px; line-height: 20px; color: var(--page-dim); }
+.scroller { max-width: 100%; overflow-x: auto; }
+iframe { display: block; border: 0; background: transparent; color-scheme: normal; }
+
+.sect { margin-top: 18px; padding: 26px 0 8px; border-top: 1px solid var(--page-line); }
+.sect h2 { font-size: 20px; line-height: 26px; font-weight: 650; letter-spacing: -0.01em; }
+.sect ul { max-width: 78ch; margin-top: 8px; padding-left: 22px; }
+.sect li + li { margin-top: 5px; }
+.sect p { max-width: 74ch; margin-top: 8px; }
+.foot { padding: 20px 0 56px; font-size: 12px; line-height: 18px; color: var(--page-dim); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Horae 弹窗设计</h1>
+      <p>选定的是表格这一版。下面是它在各个状态下的样子，以及点底部按钮进去的三个页面。每个弹窗都可以点：导航、展开和菜单是真的，“更新”“暂停”只做展示。</p>
+    </div>
+    <div class="controls" id="controls"></div>
+  </header>
+
+  <section class="band">
+    <h2>主弹窗</h2>
+    <p>头部一句话说现在怎样；中间是来源表；底部左边暂停或恢复自动更新，右边两个图标是日志和设置。</p>
+    <div class="shots" id="main"></div>
+  </section>
+
+  <section class="band">
+    <h2>点进去的页面</h2>
+    <p>日志从底部的日志图标进；设置从齿轮进；管理来源在设置里。</p>
+    <div class="shots" id="pages"></div>
+  </section>
+
+  <section class="sect">
+    <h2>这一版的要点</h2>
+    <ul>
+      <li>整体是灰白的。彩色只有三处：来源的品牌小图标、进行中的蓝、未成功的一个小红点和暗红色的字。</li>
+      <li>标志是淡蓝底上的蓝色 H，任何状态下都不变。按钮都是灰色的，没有实心蓝按钮。</li>
+      <li>每行四样：品牌小图标、名称、上次、下次最早。进行中和未成功的行多一行说明。</li>
+      <li>单个来源的“更新”和“更多”平时不显示，鼠标移到那一行时出现在时间列的位置。</li>
+      <li>底部只有三样：暂停或恢复自动更新、日志、设置。管理来源、通知、登录时打开、软件更新、退出都在设置里。</li>
+      <li>暂停时，底部左边变成“恢复自动更新”并写明暂停到何时；头部空着时也会说一遍。</li>
+      <li>未成功的来源写明自动重试的最早时刻：失败按周期退避，周更的来源失败后要一周才自动重试。</li>
+      <li>浅色和深色都有，跟随系统。</li>
+    </ul>
+    <p>完整的状态规则、调研和走过的弯路见<a href="2026-11-13-horae-popover-redesign.md">调研与规划说明</a>。</p>
+  </section>
+
+  <p class="foot">演示时间为 2026 年 11 月 13 日。数据是为评审编的，不是这台机器的真实状态。</p>
+</div>
+
+<script>
+(function () {
+  const MAIN = [
+    { id: 'idle', q: 'state=idle', t: '常态', d: '全部正常时的样子' },
+    { id: 'hover', q: 'state=idle&hover=npm-globals', t: '鼠标移到一行上', d: '时间列的位置换成“更新”和“更多”' },
+    { id: 'running', q: 'state=running', t: '执行与排队', d: '点输出那一行可以展开' },
+    { id: 'failed', q: 'state=failed', t: '失败', d: '失败的行留在原位，下面一行是原因和重试时间' },
+    { id: 'paused', q: 'state=paused', t: '已暂停', d: '底部左边变成“恢复自动更新”' },
+  ];
+  const PAGES = [
+    { id: 'log', q: 'state=failed&page=log', t: '运行日志', d: '未成功的条目可以展开看输出' },
+    { id: 'settings', q: 'state=idle&page=settings', t: '设置', d: '管理来源、通知、登录时打开、软件更新、退出' },
+    { id: 'sources', q: 'state=idle&page=sources', t: '管理来源', d: '开关、周期、添加预设' },
+  ];
+  const OPTS = {
+    theme: ['外观', [['light', '浅色'], ['dark', '深色']]],
+    data: ['数据', [['base', '8 个来源'], ['stress', '13 个，含长名称']]],
+  };
+  const st = { theme: 'light', data: 'base' };
+  new URLSearchParams(location.search + '&' + location.hash.slice(1)).forEach((val, key) => {
+    if (OPTS[key] && OPTS[key][1].some((o) => o[0] === val)) st[key] = val;
+  });
+  const $ = (id) => document.getElementById(id);
+  const shot = (f) =>
+    `<figure><figcaption><b>${f.t}</b><span>${f.d}</span></figcaption><div class="scroller"><iframe data-id="${f.id}" title="${f.t}" width="388" height="520" src="ledger.html?embed=1&id=${f.id}&${f.q}&theme=${st.theme}&data=${st.data}"></iframe></div></figure>`;
+
+  function paint() {
+    document.documentElement.dataset.theme = st.theme;
+    history.replaceState(null, '', '#' + new URLSearchParams(st).toString());
+    $('controls').innerHTML = Object.entries(OPTS)
+      .map(([key, [label, opts]]) => `<div class="grp"><span>${label}</span><div class="seg" role="group" aria-label="${label}">${opts.map(([val, text]) => `<button data-k="${key}" data-v="${val}" aria-pressed="${st[key] === val}">${text}</button>`).join('')}</div></div>`)
+      .join('');
+    $('main').innerHTML = MAIN.map(shot).join('');
+    $('pages').innerHTML = PAGES.map(shot).join('');
+  }
+
+  $('controls').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-k]');
+    if (!b) return;
+    st[b.dataset.k] = b.dataset.v;
+    paint();
+  });
+  window.addEventListener('message', (e) => {
+    if (!e.data || !e.data.horae) return;
+    const f = document.querySelector(`iframe[data-id="${e.data.horae}"]`);
+    if (f) f.height = e.data.height + 4;
+  });
+  paint();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+/* Horae 设计原型共用：重置、桌面外框、菜单栏条。弹窗自己的样式写在 ledger.html 里。 */
+*,
+*::before,
+*::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-size-adjust: 100%;
+  --page: #eceef1;
+  --page-ink: #1b1d21;
+  --page-dim: #5b626c;
+  --page-line: #d3d7dd;
+  --desk: linear-gradient(158deg, #cdd7e2 0%, #dcdde0 48%, #e6dccf 100%);
+  --mb-bg: rgba(255, 255, 255, 0.58);
+  --mb-ink: #1d1d1f;
+  --mb-open: rgba(0, 0, 0, 0.12);
+}
+html[data-theme="dark"] {
+  --page: #131518;
+  --page-ink: #eceef1;
+  --page-dim: #a0a7b1;
+  --page-line: #2b2f36;
+  --desk: linear-gradient(158deg, #1b2430 0%, #1f2126 48%, #2a2520 100%);
+  --mb-bg: rgba(22, 22, 24, 0.6);
+  --mb-ink: #f5f5f7;
+  --mb-open: rgba(255, 255, 255, 0.18);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--page-ink);
+  background: var(--page);
+}
+/* 弹窗内按 macOS 正文的 13/16 排版；页面自身的说明文字用上面更松的行高 */
+.host { font-size: 13px; line-height: 16px; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+/* 单帧嵌入（比较入口的 iframe 用） */
+body.embed { background: transparent; }
+body.embed .frame { margin: 0 auto; }
+
+/* 桌面外框：菜单栏条 + 悬挂其下的弹窗 */
+.frame { display: inline-flex; flex-direction: column; vertical-align: top; }
+.desk {
+  position: relative;
+  background: var(--desk);
+  border-radius: 12px;
+  padding-bottom: 28px;
+  overflow: hidden;
+}
+.menubar {
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 0 12px;
+  background: var(--mb-bg);
+  color: var(--mb-ink);
+  font-size: 13px;
+  line-height: 16px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.mb-icon {
+  width: 30px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  background: var(--mb-open);
+}
+.mb-icon svg { width: 16px; height: 16px; display: block; }
+.mb-clock { font-variant-numeric: tabular-nums; }
+.popwrap { display: flex; justify-content: flex-end; padding: 6px 22px 0 22px; }
+
+/* 标志与图形共用的动效 */
+@keyframes hz-spin { to { transform: rotate(360deg); } }
+@keyframes hz-run { from { stroke-dashoffset: 3.5; } to { stroke-dashoffset: 0; } }
+.hz-spin { transform-origin: 8px 8px; animation: hz-spin 1.1s linear infinite; }
+.hz-bridge { stroke-dasharray: 0.01 3.5; animation: hz-run 0.9s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .hz-spin, .hz-bridge { animation: none; }
+}

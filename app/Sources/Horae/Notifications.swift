@@ -16,11 +16,16 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
 
     func post(_ lastRun: LastRun) {
         let content = UNMutableNotificationContent()
-        let failed = lastRun.summary.failed + lastRun.summary.timeout
-        content.title = failed > 0 ? "Horae 更新有失败" : "Horae 更新完成"
+        let failed = lastRun.steps.filter(\.isUnsuccessful)
+        // 标题与弹窗头部同一套说法；系统会在标题上方写出 app 名，这里不再重复“Horae”。
+        content.title = switch failed.count {
+        case 0: "更新完成"
+        case 1: Format.adjoin(failed[0].label, "更新\(statusWord(failed[0].status))")
+        default: "\(failed.count) 项需要处理"
+        }
         content.body = body(for: lastRun)
         content.categoryIdentifier = "HORAE_RUN"
-        if failed > 0 { content.interruptionLevel = .timeSensitive }
+        if !failed.isEmpty { content.interruptionLevel = .timeSensitive }
         let req = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(req)
     }
@@ -28,7 +33,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     // body：每步一行“源 状态 · 耗时”；有包级变更(二期)则附加。
     private func body(for lastRun: LastRun) -> String {
         lastRun.steps.map { step -> String in
-            var line = "\(step.label) \(statusWord(step.status)) · \(step.duration)"
+            var line = "\(Format.adjoin(step.label, statusWord(step.status))) · \(Format.duration(step.duration))"
             if let first = step.changes.first {
                 let extra = step.changes.count > 1 ? " 等 \(step.changes.count) 项" : ""
                 if let from = first.from, let to = first.to {

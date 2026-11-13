@@ -7,7 +7,7 @@ import SwiftUI
 @MainActor
 final class Updater: ObservableObject {
     private let controller: SPUStandardUpdaterController
-    // canCheck 在 Sparkle 正忙(已有检查在跑)时为 false，用来禁用"检查更新"按钮。
+    // canCheck 在 Sparkle 正忙(已有检查在跑)时为 false，用来禁用"检查新版本"按钮。
     @Published var canCheck = true
 
     init() {

@@ -62,7 +62,7 @@ install-app: app
 	rm -rf $(APP_DEST)
 	mkdir -p $(HOME)/Applications
 	cp -R $(APP_BUNDLE) $(APP_DEST)
-	@echo "Installed $(APP_DEST). Open it; enable 开机自启 in settings to keep it resident."
+	@echo "Installed $(APP_DEST). Open it; turn on 登录时打开 in settings to keep it resident."
 
 uninstall-app:
 	rm -rf $(APP_DEST)

@@ -1,251 +1,127 @@
+import AppKit
 import SwiftUI
 
+/// 弹窗里的页面。日志、设置、管理来源都在同一个弹窗里换页，左上角返回上一级。
+enum Page: Equatable {
+    case main
+    /// focus：打开时滚到并展开的那条记录（LogEntry.id）。
+    case log(focus: String?)
+    case settings
+    /// focus：打开时滚到并标出的来源。
+    case sources(focus: String?)
+
+    /// 返回与 Esc 回到哪一页；主弹窗没有上一级。管理来源从设置进，回到设置。
+    var parent: Page? {
+        switch self {
+        case .main: nil
+        case .log, .settings: .main
+        case .sources: .settings
+        }
+    }
+}
+
+/// 菜单栏弹窗：宽 344，高度随内容。主弹窗是来源表，次级页是运行日志、设置与管理来源。
 struct PopoverView: View {
     @EnvironmentObject var store: Store
     @Environment(\.dismiss) private var dismiss
     @FocusState private var escFocused: Bool
-    @State private var showSettings = false
-    @State private var showLog = false
-    @State private var showSources = false
-    @AppStorage("notifyPolicy") private var notifyPolicy = "on_change"
-
-    private let accent = Color.horaeAccent
-    private var sources: [Source] { store.status?.sources ?? [] }
-    private let red = Color(red: 1.0, green: 0.27, blue: 0.23)
+    @StateObject private var flyouts = FlyoutModel()
+    @State private var page: Page = .main
+    /// 当前页面内容的高度，窗口按它收放。
+    @State private var contentHeight: CGFloat = 0
 
     var body: some View {
-        Group {
-            if showSettings {
-                SettingsView(onClose: { showSettings = false })
-            } else if showLog {
-                LogView(onClose: { showLog = false })
-            } else if showSources {
-                SourceManageView(onClose: { showSources = false })
-            } else {
-                main
+        content
+            .padding(.bottom, Theme.Space.panelBottom)
+            .frame(width: Theme.Metric.popoverWidth)
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+            .coordinateSpace(name: FlyoutLayer.space)
+            .overlay { FlyoutLayer() }
+            // 窗口还没收回时内容贴顶，底色铺满整个窗口。
+            .frame(maxHeight: .infinity, alignment: .top)
+            .background { PanelBackground() }
+            .background { WindowHeightFitter(height: contentHeight) }
+            .environmentObject(flyouts)
+            // MenuBarExtra(.window) 不像 NSMenu 那样按 esc 自动关闭; onExitCommand 接住 cancel(esc)。
+            // onExitCommand 仅在视图获焦时触发(否则系统 ding), 故 focusable + onAppear 主动取焦;
+            // focusEffectDisabled 去掉焦点环。dismiss 在 MenuBarExtra 内即关闭整个弹窗。
+            .focusable()
+            .focusEffectDisabled()
+            .focused($escFocused)
+            .onAppear {
+                escFocused = true
+                page = .main
+                flyouts.close()
+                store.popoverOpened()
             }
-        }
-        .frame(width: 336)
-        // MenuBarExtra(.window) 不像 NSMenu 那样按 esc 自动关闭; onExitCommand 接住 cancel(esc)。
-        // onExitCommand 仅在视图获焦时触发(否则系统 ding), 故 focusable + onAppear 主动取焦;
-        // focusEffectDisabled 去掉焦点环。dismiss 在 MenuBarExtra 内即关闭整个弹窗。
-        .focusable()
-        .focusEffectDisabled()
-        .focused($escFocused)
-        .onAppear { escFocused = true }
-        .onExitCommand {
-            if showSettings || showLog || showSources {
-                // 子页面时 esc 先退回主页, 与各子页自带的关闭按钮同义。
-                showSettings = false
-                showLog = false
-                showSources = false
-            } else {
-                dismiss() // 主页时 esc 关闭整个弹窗, 与失焦隐藏一致。
-            }
-        }
-    }
-
-    private var main: some View {
-        VStack(spacing: 0) {
-            header
-            Divider().opacity(0.35)
-            actionRow
-            summaryRow
-            cards
-            footer
-        }
-    }
-
-    // MARK: 头部
-
-    private var header: some View {
-        HStack(spacing: 8) {
-            RoundedRectangle(cornerRadius: 6)
-                .fill(accent)
-                .frame(width: 23, height: 23)
-                .overlay(Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 12, weight: .bold)).foregroundStyle(.white))
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Horae").font(.system(size: 13.5, weight: .bold))
-                Text("更新编排 · \(sources.count) 源").font(.system(size: 10)).foregroundStyle(.secondary)
-            }
-            Spacer()
-            if let lr = store.lastRun, lr.finishedAt > .distantPast + 1 {
-                VStack(alignment: .trailing, spacing: 1) {
-                    Text("上次同步").font(.system(size: 8.5)).foregroundStyle(.tertiary)
-                    Text(timeOnly(lr.finishedAt)).font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary)
+            .onExitCommand {
+                // 先关弹出菜单，再从次级页返回上一级，主弹窗时关闭。
+                if flyouts.open != nil {
+                    flyouts.close()
+                } else if let parent = page.parent {
+                    navigate(parent)
+                } else {
+                    dismiss()
                 }
             }
-            iconButton("list.bullet") { showSources = true }
-            iconButton("gearshape") { showSettings = true }
-        }
-        .padding(.horizontal, 12).padding(.top, 11).padding(.bottom, 9)
     }
 
-    // MARK: 操作行（全部更新克制为淡色按钮，不占满整行）
-
-    private var actionRow: some View {
-        HStack(spacing: 7) {
-            Button(action: { store.runAll() }) {
-                HStack(spacing: 5) {
-                    Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 11.5, weight: .semibold))
-                    Text("全部更新").font(.system(size: 11.5, weight: .semibold))
-                }
-                .frame(height: 27).padding(.horizontal, 11)
-                .foregroundStyle(accent)
-                .background(accent.opacity(0.14), in: RoundedRectangle(cornerRadius: 7))
-                .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(accent.opacity(0.22), lineWidth: 0.5))
-            }
-            .buttonStyle(.plain)
-            pausePill
-            Spacer()
-        }
-        .padding(.horizontal, 12).padding(.bottom, 8)
-    }
-
-    private var paused: Bool { store.status?.paused == true }
-
-    private var pausePill: some View {
-        Menu {
-            if paused {
-                Button("恢复自动更新") { store.resume() }
-            } else {
-                Button("暂停 1 小时") { store.pause(until: Date().addingTimeInterval(3600)) }
-                Button("暂停到今天结束") { store.pause(until: endOfToday()) }
-                Button("暂停直到手动恢复") { store.pause(until: nil) }
-            }
-        } label: {
-            HStack(spacing: 5) {
-                Circle().fill(paused ? Color.secondary : Color.green).frame(width: 5, height: 5)
-                Text(paused ? "已暂停" : "运行中").font(.system(size: 11, weight: .semibold))
-                Image(systemName: "chevron.down").font(.system(size: 7.5, weight: .bold)).foregroundStyle(.tertiary)
-            }
-            .frame(height: 27).padding(.horizontal, 10)
-            .background(Color.primary.opacity(0.05))
-            .clipShape(RoundedRectangle(cornerRadius: 7))
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
-    }
-
-    // MARK: 汇总
-
-    private var summaryRow: some View {
-        let ok = sources.filter { $0.enabled && $0.status == "success" }.count
-        let updating = store.current?.running == true ? 1 : 0
-        let failed = sources.filter { $0.enabled && ($0.status == "failure" || $0.status == "timeout") }.count
-        let due = sources.filter { $0.enabled && $0.due && $0.status != "failure" && $0.status != "timeout" }.count
-        let off = sources.filter { !$0.enabled }.count
-        return HStack(spacing: 10) {
-            summaryItem(ok, "正常", .primary)
-            if updating > 0 { summaryItem(updating, "更新中", .horaeAmber) }
-            if failed > 0 { summaryItem(failed, "失败", red) }
-            if due > 0 { summaryItem(due, "待更新", .primary) }
-            if off > 0 { summaryItem(off, "已关闭", .secondary) }
-            Spacer()
-        }
-        .padding(.horizontal, 14).padding(.bottom, 7)
-    }
-
-    private func summaryItem(_ n: Int, _ label: String, _ color: Color) -> some View {
-        HStack(spacing: 4) {
-            Text("\(n)").font(.system(size: 10.5, weight: .semibold, design: .monospaced)).foregroundStyle(color)
-            Text(label).font(.system(size: 10.5)).foregroundStyle(.secondary)
+    @ViewBuilder private var content: some View {
+        switch page {
+        case .main: MainPage(navigate: navigate)
+        case let .log(focus): LogPage(focus: focus, navigate: navigate)
+        case .settings: SettingsPage(navigate: navigate)
+        case let .sources(focus): SourcesPage(focus: focus, navigate: navigate)
         }
     }
 
-    // MARK: 卡片（少量源直接 VStack，避免 ScrollView 在自适应弹窗里塌成 0 高）
+    private func navigate(_ next: Page) {
+        flyouts.close()
+        page = next
+    }
+}
 
-    private var cards: some View {
-        Group {
-            if sources.isEmpty {
-                Text("未发现更新源\n确认 ~/.config/horae/recipes.toml 已配置")
-                    .font(.system(size: 10.5)).foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center).padding(.vertical, 22)
-            } else if sources.count <= 7 {
-                cardList
-            } else {
-                ScrollView { cardList }.frame(height: 340)
-            }
+/// MenuBarExtra 的窗口只随内容长高，不随内容变矮（换到更矮的页面时窗口留在原高度）。
+/// 这里在内容高度变化后把窗口的内容区收成内容的高度，顶边不动，弹窗仍挂在菜单栏下面。
+private struct WindowHeightFitter: NSViewRepresentable {
+    let height: CGFloat
+
+    func makeNSView(context: Context) -> NSView { NSView() }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        let height = height
+        DispatchQueue.main.async {
+            guard height > 0, let window = view.window else { return }
+            let frame = window.frame
+            let content = window.contentRect(forFrameRect: frame)
+            guard abs(content.height - height) > Theme.Metric.hairline else { return }
+            var fitted = window.frameRect(forContentRect: NSRect(x: content.minX, y: content.minY, width: content.width, height: height))
+            fitted.origin.y = frame.maxY - fitted.height
+            window.setFrame(fitted, display: true)
         }
     }
+}
 
-    private var cardList: some View {
-        VStack(spacing: 4) {
-            ForEach(sources) { source in
-                SourceCardView(source: source, current: store.current)
-                    .environmentObject(store)
-            }
+/// 弹窗底：系统的弹出材质，上面压一层 panel，只透出少量模糊后的桌面。浅色与深色跟随系统。
+private struct PanelBackground: View {
+    var body: some View {
+        ZStack {
+            VisualEffectMaterial()
+            Theme.Palette.panel
         }
-        .padding(.horizontal, 9).padding(.bottom, 7)
+        .ignoresSafeArea()
+    }
+}
+
+private struct VisualEffectMaterial: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .popover
+        view.blendingMode = .behindWindow
+        view.state = .active
+        return view
     }
 
-    // MARK: 底部
-
-    private var footer: some View {
-        HStack(spacing: 13) {
-            footerButton("doc.text", "日志") { showLog = true }
-            notifyMenu
-            Spacer()
-            footerButton("power", "退出") { NSApp.terminate(nil) }
-        }
-        .padding(.horizontal, 14).padding(.vertical, 8)
-        .overlay(Divider().opacity(0.35), alignment: .top)
-    }
-
-    private var notifyMenu: some View {
-        Menu {
-            ForEach(NotifyPolicy.allCases) { p in
-                Button(action: { notifyPolicy = p.rawValue }) {
-                    if notifyPolicy == p.rawValue { Label(p.label, systemImage: "checkmark") } else { Text(p.label) }
-                }
-            }
-        } label: {
-            HStack(spacing: 5) {
-                Image(systemName: "bell").font(.system(size: 11))
-                Text("通知 ").font(.system(size: 10.5)) + Text(NotifyPolicy(rawValue: notifyPolicy)?.label ?? "有变更时").font(.system(size: 10.5, weight: .semibold)).foregroundColor(accent)
-                Image(systemName: "chevron.down").font(.system(size: 7.5, weight: .bold)).foregroundStyle(.tertiary)
-            }
-            .foregroundStyle(.secondary)
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
-    }
-
-    // MARK: 小部件
-
-    private func iconButton(_ symbol: String, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol).font(.system(size: 12))
-                .frame(width: 24, height: 24)
-                .background(Color.primary.opacity(0.045))
-                .clipShape(RoundedRectangle(cornerRadius: 7))
-                .foregroundStyle(.secondary)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func footerButton(_ symbol: String, _ label: String, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 5) {
-                Image(systemName: symbol).font(.system(size: 11))
-                Text(label).font(.system(size: 10.5))
-            }
-            .foregroundStyle(.secondary)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func timeOnly(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm:ss"
-        return f.string(from: date)
-    }
-
-    private func endOfToday() -> Date {
-        let cal = Calendar.current
-        let start = cal.startOfDay(for: Date())
-        return cal.date(byAdding: .day, value: 1, to: start) ?? Date().addingTimeInterval(3600)
-    }
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {}
 }

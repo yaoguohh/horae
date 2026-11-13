@@ -1,14 +1,15 @@
 import Foundation
 
-// LogEntry 是一条运行日志记录(供前台日志查看器)。
+// LogEntry 是一条运行日志记录(运行日志页与失败输出)。
 struct LogEntry: Identifiable {
-    let id = UUID()
+    // 来源加时刻：日志重读后同一条记录 id 不变，展开与跳转的状态不会丢。
+    var id: String { "\(source)@\(time.timeIntervalSinceReferenceDate)" }
     var time: Date
     var source: String
     var status: String
+    var exitCode: Int
     var duration: String
-    var reason: String
-    var detail: String // 失败/超时的子进程输出尾部，点击展开
+    var detail: String // 失败/超时的子进程输出尾部
 }
 
 // ConfigStep 对应 `horae config list/add` 的 step JSON。
@@ -174,7 +175,7 @@ enum Engine {
         }
     }
 
-    // MARK: 运行日志(供前台日志查看器)
+    // MARK: 运行日志
 
     static func recentLogEntries(limit: Int = 250) -> [LogEntry] {
         guard let files = try? FileManager.default.contentsOfDirectory(atPath: logDir.path) else { return [] }
@@ -190,8 +191,8 @@ enum Engine {
                     time: parseISO(kv["time"] ?? ""),
                     source: kv["id"] ?? "?",
                     status: kv["status"] ?? "",
+                    exitCode: Int(kv["exit"] ?? "") ?? 0,
                     duration: kv["duration"] ?? "",
-                    reason: kv["reason"] ?? "",
                     detail: kv["stderr_tail"] ?? ""
                 ))
             }
@@ -199,6 +200,9 @@ enum Engine {
         }
         return Array(entries.sorted { $0.time > $1.time }.prefix(limit))
     }
+
+    // slogEscapes：slog 引号值用 Go strconv.Quote 转义，失败输出里的换行与制表符要还原。
+    private static let slogEscapes: [Character: Character] = ["n": "\n", "t": "\t", "r": "\r"]
 
     // parseSlogLine 解析 slog text handler 的 key=value 行(值可带引号转义)。
     private static func parseSlogLine(_ line: String) -> [String: String] {
@@ -216,7 +220,11 @@ enum Engine {
             if i < n, chars[i] == "\"" {
                 i += 1
                 while i < n, chars[i] != "\"" {
-                    if chars[i] == "\\", i + 1 < n { i += 1 }
+                    if chars[i] == "\\", i + 1 < n {
+                        i += 1
+                        val.append(slogEscapes[chars[i]] ?? chars[i]); i += 1
+                        continue
+                    }
                     val.append(chars[i]); i += 1
                 }
                 if i < n { i += 1 }

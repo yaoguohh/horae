@@ -1,7 +1,7 @@
 import Foundation
 import ServiceManagement
 
-// LoginItem：开机自启(SMAppService 登录项)。需 .app 有签名身份；dev(swift run)会抛错，忽略。
+// LoginItem：登录时打开(SMAppService 登录项)。需 .app 有签名身份；dev(swift run)会抛错，忽略。
 enum LoginItem {
     static var isEnabled: Bool {
         SMAppService.mainApp.status == .enabled
