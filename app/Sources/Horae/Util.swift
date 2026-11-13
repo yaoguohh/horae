@@ -13,6 +13,7 @@ enum SourceIcon {
 
     static func iconKey(for id: String) -> String {
         let s = id.lowercased()
+        if s.contains("hermes") { return "hermes" }
         if s.contains("brew") { return "brew" }
         if s.contains("npm") { return "npm" }
         if s.contains("claude") { return "claude" }

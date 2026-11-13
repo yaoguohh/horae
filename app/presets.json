@@ -10,6 +10,16 @@
     "note": "这些 CLI 发版极快(常日更),单列高频 step 以便紧跟。与 npm-globals-ncu 的整体扫描重叠: 二选一即可——想全量统一用 npm-globals-ncu(1d),想只盯 AI CLI 抢新用本 step(6h)。逐包 @latest 比 ncu 更稳(ncu -g 偶有只打印不执行)。"
   },
   {
+    "id": "hermes",
+    "label": "Hermes",
+    "manager": "hermes",
+    "installed": true,
+    "detail": "Hermes Agent 自身更新。",
+    "shell": "export PATH=\"$HOME/.local/bin:$PATH\"; hermes update --yes --channel stable",
+    "cadence": "1d",
+    "note": "每天更新到 stable 版本，--yes 用于无人值守。默认从 ~/.local/bin 查找 Hermes；如安装在其他位置，请在 recipe 中调整命令或 PATH。"
+  },
+  {
     "id": "homebrew-formula",
     "label": "Homebrew (formula / CLI 工具)",
     "manager": "homebrew",
